@@ -1,127 +1,131 @@
 # INNOVAHUAP 360 — Plataforma del Comité de Innovación
 
-Portal web responsive del Comité de Innovación del **Hospital de Urgencia Asistencia Pública (HUAP — Posta Central)**. Combina un **portal público** de innovación con una **plataforma interna** de gestión (dashboards, portafolio, actas, factibilidad, Gantt, conocimiento, comunicaciones e InnovaIA).
-
-Construido con **React 18 + TypeScript + Vite + Tailwind CSS** y **React Router**.
+Plataforma del Comité de Innovación del **Hospital de Urgencia Asistencia Pública (HUAP — Posta Central)**.
+Combina un **portal público** de innovación con una **plataforma interna** de gestión (dashboards, portafolio,
+actas, factibilidad, Gantt, conocimiento, comunicaciones, InnovaIA) y un **panel de administración** con
+autenticación, RBAC, gestión de contenido y auditoría.
 
 > Eslogan: _"Transformando ideas en impacto para la salud pública"._
 
 ---
 
-## Requisitos
+## Stack
 
-- **Node.js 18+** (recomendado 20+)
-- npm 9+ (o pnpm/yarn equivalente)
+| Capa | Tecnología |
+|---|---|
+| Frontend | React 18 + TypeScript + Vite + Tailwind CSS + React Router + TanStack Query + React Hook Form + Zod |
+| Backend | NestJS + TypeScript + REST + JWT (access + refresh) + Argon2 + Helmet + Rate limiting |
+| Base de datos | PostgreSQL + Prisma ORM |
+| Correo | Nodemailer (SMTP), Mailhog en desarrollo |
+| Infraestructura | Docker, Docker Compose, Nginx (reverse proxy) |
 
-## Puesta en marcha
-
-```bash
-npm install      # instala dependencias
-npm run dev      # arranca el servidor de desarrollo (http://localhost:5173)
-```
-
-Otros comandos:
-
-```bash
-npm run build    # compila TypeScript y genera el build de producción en /dist
-npm run preview  # sirve el build de producción localmente
-```
-
-## Abrir en Visual Studio Code
-
-1. `File ▸ Open Folder…` y elige la carpeta `innovahuap360-react`.
-2. Abre una terminal integrada (`Ctrl/Cmd + ñ`) y ejecuta `npm install` y luego `npm run dev`.
-3. Extensiones recomendadas: **ESLint**, **Tailwind CSS IntelliSense**, **Prettier**.
-
----
-
-## Estructura del proyecto
+## Estructura del monorepo
 
 ```
 innovahuap360-react/
-├─ public/
-│  ├─ logo.png            # Logotipo HUAP
-│  └─ fondo.jpg           # Imagen del edificio (hero)
-├─ src/
-│  ├─ main.tsx            # Punto de entrada (BrowserRouter)
-│  ├─ App.tsx             # Definición de rutas (público + interno)
-│  ├─ index.css           # Tailwind + tokens de diseño (CSS variables)
-│  ├─ lib/
-│  │  └─ nav.ts           # Configuración de navegación (público y sidebar)
-│  ├─ data/
-│  │  ├─ public.ts        # Datos del portal público (tipados)
-│  │  └─ app.ts           # Datos de la plataforma interna (tipados)
-│  ├─ components/
-│  │  ├─ Brand.tsx        # Logotipo + wordmark
-│  │  ├─ PageHeader.tsx   # Cabecera de páginas públicas
-│  │  └─ ui/              # Componentes reutilizables
-│  │     ├─ Section.tsx   # Eyebrow, SectionTitle
-│  │     ├─ Panel.tsx     # Panel, Kpi
-│  │     ├─ ProgressBar.tsx
-│  │     ├─ Badge.tsx     # Badge, Dot
-│  │     ├─ ProjectCard.tsx
-│  │     └─ index.ts      # Barrel de exportación
-│  ├─ layouts/
-│  │  ├─ PublicLayout.tsx # Header + menú hamburguesa + footer
-│  │  └─ AppLayout.tsx    # Sidebar (drawer en móvil) + topbar
-│  └─ pages/
-│     ├─ public/          # 8 páginas del portal público
-│     │  ├─ Home.tsx
-│     │  ├─ QuienesSomos.tsx
-│     │  ├─ Politica.tsx
-│     │  ├─ PortafolioPublico.tsx
-│     │  ├─ Observatorio.tsx
-│     │  ├─ Conocimiento.tsx
-│     │  ├─ Eventos.tsx
-│     │  └─ Postula.tsx
-│     └─ app/             # 9 páginas de la plataforma interna
-│        ├─ Dashboard.tsx
-│        ├─ Portafolio.tsx        # Kanban
-│        ├─ Actas.tsx
-│        ├─ Factibilidad.tsx
-│        ├─ Gantt.tsx
-│        ├─ ConocimientoInterno.tsx
-│        ├─ Comunicaciones.tsx
-│        ├─ InnovaIA.tsx
-│        └─ Ejecutivo.tsx
-├─ tailwind.config.ts
-├─ vite.config.ts
-└─ tsconfig*.json
+├─ frontend/         # SPA React (portal público + plataforma interna + admin)
+├─ backend/          # API NestJS (auth, RBAC, CMS, módulos, mail, InnovaIA)
+├─ nginx/            # Reverse proxy único del stack (nginx.conf)
+├─ docs/             # Documentación técnica (auditoría, plan, seguridad, etc.)
+├─ docker-compose.yml
+├─ docker-compose.prod.yml
+└─ .env.example      # Variables para docker-compose
 ```
+
+Detalle de cada paquete: [`backend/`](backend) y [`frontend/`](frontend) (ver sus propios `package.json`).
+
+## Puesta en marcha con Docker (recomendado)
+
+Requiere **Docker** y **Docker Compose**.
+
+```bash
+cp .env.example .env        # completa los secretos (JWT, contraseñas, etc.)
+docker compose --profile dev up -d --build
+```
+
+Esto levanta: PostgreSQL, el backend (aplica migraciones y crea el usuario administrador inicial),
+el frontend y Nginx como punto de entrada único. El perfil `dev` agrega Mailhog para capturar los
+correos de recuperación de contraseña sin un SMTP real.
+
+- Aplicación: http://localhost
+- Mailhog (correos capturados): http://localhost:8025
+- Swagger (solo si `NODE_ENV != production`): http://localhost/api/docs *(detrás del proxy)* o `http://localhost:3001/api/docs` directo al backend
+
+El usuario administrador inicial se crea con `ADMIN_EMAIL` / `ADMIN_PASSWORD` del `.env` (si no se define
+`ADMIN_PASSWORD`, el seed genera una contraseña aleatoria y la imprime una sola vez en los logs del
+backend: `docker compose logs backend`).
+
+Para producción:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+Ver [`docs/CHECKLIST_PRODUCCION.md`](docs/CHECKLIST_PRODUCCION.md) antes de desplegar.
+
+## Puesta en marcha en local sin Docker (desarrollo)
+
+Requiere **Node.js 20+**, **npm 9+** y una instancia de **PostgreSQL** accesible.
+
+```bash
+# Backend
+cd backend
+cp .env.example .env          # ajusta DATABASE_URL y los secretos JWT
+npm install
+npm run prisma:migrate        # crea las tablas
+npm run prisma:seed           # roles, permisos y usuario administrador
+npm run start:dev             # http://localhost:3001/api
+
+# Frontend (en otra terminal)
+cd frontend
+cp .env.example .env          # VITE_API_URL=http://localhost:3001/api
+npm install
+npm run dev                   # http://localhost:5173
+```
+
+## Documentación
+
+- [`docs/AUDITORIA.md`](docs/AUDITORIA.md) — Estado inicial del proyecto (mockup) y decisiones de migración.
+- [`docs/PLAN_MIGRACION.md`](docs/PLAN_MIGRACION.md) — Plan de fases ejecutado.
+- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — Arquitectura del sistema, módulos y modelo de datos.
+- [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) — Controles OWASP implementados y estado de `npm audit`.
+- [`docs/CHECKLIST_PRODUCCION.md`](docs/CHECKLIST_PRODUCCION.md) — Checklist antes de desplegar a producción.
+- [`docs/CLAUDE_MASTER_PROMPT_INNOVAHUAP360.md`](docs/CLAUDE_MASTER_PROMPT_INNOVAHUAP360.md) — Especificación
+  funcional original del proyecto.
 
 ## Rutas
 
-| Ruta | Vista |
-|------|-------|
-| `/` | Inicio (portal público) |
-| `/quienes-somos` · `/politica` · `/portafolio` · `/observatorio` · `/conocimiento` · `/eventos` · `/postula` | Páginas públicas |
-| `/app` | Dashboard General (plataforma interna) |
-| `/app/portafolio` · `/app/actas` · `/app/factibilidad` · `/app/gantt` · `/app/conocimiento` · `/app/comunicaciones` · `/app/innovaia` · `/app/ejecutivo` | Módulos internos |
+### Portal público
+`/` · `/quienes-somos` · `/politica` · `/portafolio` · `/observatorio` · `/conocimiento` · `/eventos` · `/postula`
 
-El botón **"Acceso Comité"** del portal lleva a `/app`; **"Volver al portal"** regresa a `/`.
+### Autenticación
+`/login` · `/recuperar-password` · `/restablecer-password/:token`
 
----
+### Plataforma interna (requiere sesión)
+`/app` · `/app/portafolio` · `/app/actas` · `/app/factibilidad` · `/app/gantt` · `/app/conocimiento` ·
+`/app/comunicaciones` · `/app/innovaia` · `/app/ejecutivo`
 
-## Diseño responsive (Mobile First)
-
-Breakpoints de Tailwind:
-
-- **Mobile:** base (320–768 px) — una sola columna, menú hamburguesa, tablas/Kanban/Gantt con scroll horizontal.
-- **Tablet:** `md` (≥768 px) — rejillas de 2 columnas, acciones visibles.
-- **Desktop:** `lg` (≥1024 px) — navegación superior completa, sidebar fijo, rejillas de 3–5 columnas.
+### Administración (requiere permisos RBAC)
+`/app/admin` · `/app/admin/contenido-publico` · `/app/admin/usuarios` · `/app/admin/roles` ·
+`/app/admin/configuracion` · `/app/admin/auditoria`
 
 ## Identidad visual
 
-- **Acento de marca:** rojo institucional HUAP `#ed1d25` (definido como variable CSS `--accent`).
-- **Identidad alternativa:** azul salud `#2a6fdb` — añade `data-accent="blue"` al elemento `<html>` para alternar toda la paleta sin tocar componentes.
+- **Acento de marca:** rojo institucional HUAP `#ed1d25` (variable CSS `--accent`, alternable a azul
+  salud `#2a6fdb` con `data-accent="blue"` en `<html>`).
 - **Tipografía:** Hanken Grotesk (texto) + JetBrains Mono (datos, etiquetas, métricas).
-- **Base neutra:** escala _slate_ fría (sistema de diseño Acervo).
+- Tokens de diseño en `frontend/src/index.css`, expuestos a Tailwind en `frontend/tailwind.config.ts`.
+  **No se modificaron** durante la migración a plataforma productiva.
 
-Los tokens viven como variables CSS en `src/index.css` y se exponen a Tailwind en `tailwind.config.ts`.
+## Estado conocido / próximos pasos
 
-## Iconografía
-
-[Lucide](https://lucide.dev) vía `lucide-react`.
+Las páginas operativas internas (Portafolio, Actas, Factibilidad, Gantt, Conocimiento interno,
+Comunicaciones, InnovaIA, Ejecutivo, Dashboard general) siguen leyendo datos de ejemplo locales
+(`frontend/src/data/`) por diseño visual — las APIs equivalentes ya existen en el backend
+(`projects`, `minutes`, `feasibility`, `knowledge`, `communications`, `dashboard`) y quedan
+documentadas como siguiente iteración en `docs/PLAN_MIGRACION.md`. Todo lo demás (autenticación,
+recuperación de contraseña, RBAC, administración de contenido público, auditoría, Docker) está
+implementado y verificado de extremo a extremo.
 
 ---
 
