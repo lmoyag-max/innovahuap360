@@ -47,6 +47,14 @@ Esto levanta: PostgreSQL, el backend (aplica migraciones y crea el usuario admin
 el frontend y Nginx como punto de entrada único. El perfil `dev` agrega Mailhog para capturar los
 correos de recuperación de contraseña sin un SMTP real.
 
+Por defecto **solo Nginx (puerto 80)** queda publicado al host — Postgres y el backend no exponen
+sus puertos (igual que en producción). Para inspeccionar la base de datos o llamar a la API
+directo durante el desarrollo, suma el override de conveniencia:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile dev up -d --build
+```
+
 - Aplicación: http://localhost
 - Mailhog (correos capturados): http://localhost:8025
 - Swagger (solo si `NODE_ENV != production`): http://localhost/api/docs *(detrás del proxy)* o `http://localhost:3001/api/docs` directo al backend

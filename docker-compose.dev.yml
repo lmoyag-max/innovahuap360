@@ -1,0 +1,17 @@
+# Conveniencias de desarrollo local.
+# Uso: docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile dev up -d --build
+#
+# Publica al host los puertos de Postgres y del backend para poder
+# inspeccionar la base de datos o llamar a la API directamente durante
+# el desarrollo. El archivo base (docker-compose.yml) NO publica estos
+# puertos por defecto — solo Nginx (80) y, con el perfil "dev", Mailhog
+# (8025) quedan expuestos.
+
+services:
+  postgres:
+    ports:
+      - '5432:5432'
+
+  backend:
+    ports:
+      - '3001:3001'
