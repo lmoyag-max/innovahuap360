@@ -50,7 +50,7 @@ export default function Portafolio() {
     onSuccess: () => { invalidate(); setShowForm(false); reset() },
   })
   const stageMutation = useMutation({
-    mutationFn: ({ id, stage }: { id: string; stage: ProjectStage }) => api.patch(`/projects/${id}`, { stage }),
+    mutationFn: ({ id, stage }: { id: string; stage: ProjectStage }) => api.patch(`/projects/${id}/stage`, { stage }),
     onSuccess: invalidate,
   })
 
@@ -85,6 +85,14 @@ export default function Portafolio() {
           )}
         </div>
       </div>
+
+      {stageMutation.error && (
+        <div className="shrink-0 px-4 sm:px-6 mb-3.5">
+          <p className="text-[12.5px] p-2.5 rounded-md" style={{ background: 'var(--accent-50)', color: 'var(--accent)' }}>
+            {apiErrorMessage(stageMutation.error)}
+          </p>
+        </div>
+      )}
 
       {showForm && (
         <div className="shrink-0 px-4 sm:px-6 mb-3.5">

@@ -22,6 +22,7 @@ import RestablecerPassword from './pages/auth/RestablecerPassword'
 
 // Páginas privadas (plataforma interna)
 import Dashboard from './pages/app/Dashboard'
+import BancoIdeas from './pages/app/BancoIdeas'
 import Portafolio from './pages/app/Portafolio'
 import Actas from './pages/app/Actas'
 import Factibilidad from './pages/app/Factibilidad'
@@ -65,6 +66,9 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route path="app" element={<AppLayout />}>
           <Route index element={<Dashboard />} />
+          <Route element={<RequirePermission permission="ideas.read" />}>
+            <Route path="ideas" element={<BancoIdeas />} />
+          </Route>
           <Route path="portafolio" element={<Portafolio />} />
           <Route path="actas" element={<Actas />} />
           <Route path="factibilidad" element={<Factibilidad />} />

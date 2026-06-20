@@ -94,6 +94,8 @@ npm run dev                   # http://localhost:5173
 ## Documentación
 
 - [`docs/AUDITORIA.md`](docs/AUDITORIA.md) — Estado inicial del proyecto (mockup) y decisiones de migración.
+- [`docs/AUDITORIA_MODULOS_INTERNOS.md`](docs/AUDITORIA_MODULOS_INTERNOS.md) — Auditoría funcional de los
+  9 módulos internos + propuesta y estado de Banco de Ideas y Pipeline de Innovación.
 - [`docs/PLAN_MIGRACION.md`](docs/PLAN_MIGRACION.md) — Plan de fases ejecutado.
 - [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — Arquitectura del sistema, módulos y modelo de datos.
 - [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) — Controles OWASP implementados y estado de `npm audit`.
@@ -127,13 +129,22 @@ npm run dev                   # http://localhost:5173
 
 ## Estado conocido / próximos pasos
 
-Las páginas operativas internas (Portafolio, Actas, Factibilidad, Gantt, Conocimiento interno,
-Comunicaciones, InnovaIA, Ejecutivo, Dashboard general) siguen leyendo datos de ejemplo locales
-(`frontend/src/data/`) por diseño visual — las APIs equivalentes ya existen en el backend
-(`projects`, `minutes`, `feasibility`, `knowledge`, `communications`, `dashboard`) y quedan
-documentadas como siguiente iteración en `docs/PLAN_MIGRACION.md`. Todo lo demás (autenticación,
-recuperación de contraseña, RBAC, administración de contenido público, auditoría, Docker) está
-implementado y verificado de extremo a extremo.
+Los 9 módulos internos (Dashboard general, Portafolio, Actas, Factibilidad, Carta Gantt,
+Conocimiento, Comunicaciones, InnovaIA, Dashboard Ejecutivo) están conectados a sus APIs reales
+— ya no quedan datos de ejemplo en `/app/*`. Se agregaron además dos módulos nuevos:
+
+- **Banco de Ideas** (`/postula` público + `/app/ideas` interno): embudo de captura de ideas con
+  triage del Comité y conversión a proyecto real del portafolio.
+- **Pipeline de Innovación**: gobernanza de cambio de etapa sobre `Project`
+  (`PATCH /projects/:id/stage`), con trazabilidad en `project_stage_history` y un primer gate
+  (no se puede avanzar a Piloto/Implementación/Escalamiento sin factibilidad registrada).
+
+El detalle completo de la auditoría funcional módulo por módulo —qué se conectó, qué queda como
+siguiente iteración (p. ej. plantilla de factibilidad ponderada, dependencias en la Carta Gantt,
+integración con un proveedor real de email marketing)— está en
+[`docs/AUDITORIA_MODULOS_INTERNOS.md`](docs/AUDITORIA_MODULOS_INTERNOS.md). Autenticación,
+recuperación de contraseña, RBAC, administración de contenido público, auditoría y Docker
+siguen implementados y verificados de extremo a extremo.
 
 ---
 

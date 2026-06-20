@@ -1,7 +1,7 @@
 import {
   Home, Users, FileText, BookOpen, Megaphone, CalendarDays, Sparkles, FolderKanban,
   LayoutGrid, GanttChartSquare, ClipboardCheck, BarChart3, ShieldCheck, UserCog,
-  KeyRound, Settings, ScrollText,
+  KeyRound, Settings, ScrollText, Lightbulb,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -34,6 +34,7 @@ export const appNav: NavGroup[] = [
     title: 'Gestión',
     items: [
       { label: 'Dashboard General', to: '/app', icon: LayoutGrid, end: true },
+      { label: 'Banco de Ideas', to: '/app/ideas', icon: Lightbulb, permission: 'ideas.read' },
       { label: 'Portafolio', to: '/app/portafolio', icon: FolderKanban },
       { label: 'Actas', to: '/app/actas', icon: FileText },
       { label: 'Factibilidad', to: '/app/factibilidad', icon: ClipboardCheck },

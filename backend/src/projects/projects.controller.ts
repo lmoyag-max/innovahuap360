@@ -2,10 +2,13 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post
 import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.interface';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpsertTaskDto } from './dto/upsert-task.dto';
 import { SetFeasibilityDto } from './dto/set-feasibility.dto';
+import { TransitionStageDto } from './dto/transition-stage.dto';
 import { ProjectsService } from './projects.service';
 
 @ApiTags('projects')
@@ -73,5 +76,17 @@ export class ProjectsController {
   @RequirePermissions('projects.manage')
   setFeasibility(@Param('id') id: string, @Body() dto: SetFeasibilityDto) {
     return this.service.setFeasibility(id, dto);
+  }
+
+  @Patch('projects/:id/stage')
+  @RequirePermissions('projects.manage')
+  transitionStage(@Param('id') id: string, @Body() dto: TransitionStageDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.transitionStage(id, dto, user.fullName);
+  }
+
+  @Get('projects/:id/stage-history')
+  @RequirePermissions('projects.read')
+  getStageHistory(@Param('id') id: string) {
+    return this.service.getStageHistory(id);
   }
 }

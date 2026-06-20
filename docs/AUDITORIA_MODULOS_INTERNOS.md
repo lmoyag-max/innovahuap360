@@ -259,3 +259,25 @@ El resto de los permisos necesarios (`projects.*`, `minutes.*`, `knowledge.*`,
 
 Este documento es la base de la implementación progresiva que continúa en los commits
 siguientes, módulo por módulo, sin alterar la identidad visual ni destruir el mockup existente.
+
+## Addendum — estado de implementación (2026-06-20)
+
+Lo descrito en este documento ya fue construido e integrado en el código:
+
+- Los 9 módulos internos quedaron conectados a las APIs reales (ver commit "feat: conectar
+  los 9 modulos internos a las APIs reales"). Ya no existe dato mock en `/app/*`.
+- **Banco de Ideas** quedó implementado de punta a punta: modelo `Idea` + enum `IdeaStatus`
+  (`backend/prisma/schema.prisma`), endpoint público `POST /public/ideas` (con
+  `@Throttle` de 5 req/min, igual criterio que las rutas sensibles de `auth`), endpoints
+  internos `GET/PATCH /ideas` y `POST /ideas/:id/convert-to-project` (`backend/src/ideas/`),
+  permisos `ideas.read`/`ideas.manage` en el seed, página pública `/postula` ahora envía
+  datos reales, y nueva página interna `/app/ideas` para el triage del Comité.
+- **Pipeline de Innovación**: se implementó como capa de gobernanza sobre `Project`, no como
+  un módulo aparte. Nuevo modelo `ProjectStageHistory` (trazabilidad de quién/cuándo/desde-hacia
+  qué etapa) y endpoint `PATCH /projects/:id/stage` que valida un primer gate explícito —no se
+  puede avanzar a Piloto/Implementación/Escalamiento sin al menos una evaluación de factibilidad
+  registrada— devolviendo 409 con el motivo si no se cumple. El cambio de etapa desde el
+  Kanban de Portafolio pasa ahora por esta ruta en vez de un PATCH genérico. Gates adicionales
+  configurables desde Administración quedan como siguiente iteración natural, no construida en
+  este pase para evitar una capa de configuración sin un caso de uso real que la exija todavía.
+- **Administración** y **Auditoría** no se tocaron — ya eran funcionales desde fases anteriores.

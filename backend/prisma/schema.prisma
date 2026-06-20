@@ -166,8 +166,27 @@ model Project {
   tasks       ProjectTask[]
   feasibility Feasibility[]
   minutesItems MinuteProject[]
+  ideas       Idea[]
+  stageHistory ProjectStageHistory[]
 
   @@map("projects")
+}
+
+// Pipeline de Innovación — gobernanza de etapas: cada transición queda
+// trazada (quién, cuándo, desde/hacia qué etapa) para medir tiempo de ciclo
+// y sustentar las reglas de avance (ver ProjectsService.transitionStage).
+model ProjectStageHistory {
+  id          String        @id @default(uuid())
+  projectId   String        @map("project_id")
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromStage   ProjectStage  @map("from_stage")
+  toStage     ProjectStage  @map("to_stage")
+  changedByName String?     @map("changed_by_name")
+  note        String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@map("project_stage_history")
 }
 
 model ProjectTask {
@@ -182,6 +201,38 @@ model ProjectTask {
   sortOrder       Int  @default(0) @map("sort_order")
 
   @@map("project_tasks")
+}
+
+// ===================== Banco de Ideas =====================
+// Embudo formal de captura de ideas: cualquiera postula vía portal público,
+// el Comité hace triage y, si corresponde, la convierte en un Project real
+// (etapa IDEA) sin perder trazabilidad de su origen.
+
+enum IdeaStatus {
+  RECIBIDA
+  EN_TRIAGE
+  APROBADA
+  RECHAZADA
+  CONVERTIDA
+}
+
+model Idea {
+  id                String     @id @default(uuid())
+  title             String
+  description       String
+  proponentName     String     @map("proponent_name")
+  unit              String?
+  scope             String? // Clínico, Gestión, Digital, Humanización, IA
+  status            IdeaStatus @default(RECIBIDA)
+  votes             Int        @default(0)
+  triageNote        String?    @map("triage_note")
+  resultingProjectId String?   @map("resulting_project_id")
+  resultingProject  Project?   @relation(fields: [resultingProjectId], references: [id])
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("ideas")
 }
 
 // ===================== Actas y acuerdos =====================

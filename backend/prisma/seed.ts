@@ -17,6 +17,7 @@ const PERMISSIONS = [
   'audit.read',
   'settings.manage',
   'innovaia.use',
+  'ideas.read', 'ideas.manage',
 ];
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -27,13 +28,15 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'knowledge.read', 'knowledge.manage',
     'communications.read', 'communications.manage',
     'dashboard.read', 'content.manage', 'uploads.manage', 'audit.read', 'innovaia.use',
+    'ideas.read', 'ideas.manage',
   ],
   miembro_comite: [
     'projects.read', 'projects.manage',
     'minutes.read', 'minutes.manage',
     'knowledge.read', 'communications.read', 'dashboard.read', 'innovaia.use',
+    'ideas.read',
   ],
-  lector: ['projects.read', 'minutes.read', 'knowledge.read', 'communications.read', 'dashboard.read'],
+  lector: ['projects.read', 'minutes.read', 'knowledge.read', 'communications.read', 'dashboard.read', 'ideas.read'],
 };
 
 const ROLE_NAMES: Record<string, string> = {

@@ -24,6 +24,7 @@ import { MailModule } from './mail/mail.module';
 import { SettingsModule } from './settings/settings.module';
 import { HealthModule } from './health/health.module';
 import { InnovaIaModule } from './innovaia/innovaia.module';
+import { IdeasModule } from './ideas/ideas.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { InnovaIaModule } from './innovaia/innovaia.module';
     SettingsModule,
     HealthModule,
     InnovaIaModule,
+    IdeasModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
