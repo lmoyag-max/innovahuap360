@@ -70,3 +70,14 @@ export function apiErrorMessage(error: unknown, fallback = 'Ocurrió un error in
   }
   return fallback
 }
+
+/** Descarga un archivo protegido por JWT (un <a href> normal no envía el Bearer token). */
+export async function downloadUpload(uploadId: string, filename: string) {
+  const response = await api.get(`/uploads/${uploadId}/download`, { responseType: 'blob' })
+  const url = URL.createObjectURL(response.data as Blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}

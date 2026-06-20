@@ -20,7 +20,7 @@ export default function Configuracion() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-settings'] }),
   })
 
-  const knownKeys = ['executive_kpis']
+  const knownKeys = ['executive_kpis', 'executive_impact', 'executive_strategic_lines']
   const existingKeys = new Set(settings?.map((s) => s.key))
   const allKeys = [...new Set([...knownKeys, ...(settings?.map((s) => s.key) ?? [])])]
 
@@ -44,8 +44,13 @@ export default function Configuracion() {
       <Eyebrow>ADMINISTRACIÓN</Eyebrow>
       <h1 className="mt-1.5 mb-2 text-[22px] sm:text-[26px] text-ink tracking-tight font-extrabold">Configuración</h1>
       <p className="text-[13px] text-muted mb-5">
-        Parámetros institucionales en formato JSON. <code className="font-mono">executive_kpis</code> alimenta el
-        Dashboard Ejecutivo (lista de objetos con KPIs curados manualmente).
+        Parámetros institucionales en formato JSON, curados manualmente por Dirección — alimentan el{' '}
+        <strong>Dashboard Ejecutivo</strong>: <code className="font-mono">executive_kpis</code> (ej.{' '}
+        <code className="font-mono text-[11px]">{'[{"v":"$184M","l":"Beneficio estimado anual","s":"+18% vs 2025","tone":"var(--green-500)"}]'}</code>
+        ), <code className="font-mono">executive_impact</code> (ej.{' '}
+        <code className="font-mono text-[11px]">{'[{"l":"Clínico","pct":78,"color":"var(--accent)"}]'}</code>) y{' '}
+        <code className="font-mono">executive_strategic_lines</code> (ej.{' '}
+        <code className="font-mono text-[11px]">{'[{"l":"Impacto institucional","v":"Alto","pct":84,"color":"var(--green-500)"}]'}</code>).
       </p>
 
       {isLoading && <p className="text-[13px] text-muted">Cargando…</p>}

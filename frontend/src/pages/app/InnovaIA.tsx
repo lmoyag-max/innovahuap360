@@ -1,51 +1,69 @@
 import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Sparkles, Send } from 'lucide-react'
-import { iaCaps, iaCard } from '../../data/app'
+import { api, apiErrorMessage } from '../../lib/api'
 
-interface Msg { who: 'ia' | 'user'; text: string; card?: boolean }
+interface Msg { who: 'ia' | 'user'; text: string }
 
-const initial: Msg[] = [
-  { who: 'ia', text: 'Hola, soy InnovaIA, el copiloto del Comité de Innovación. ¿En qué te ayudo hoy? Puedo redactar actas, fichas de proyecto, KPIs, cartas Gantt e informes.' },
-  { who: 'user', text: 'Genera una ficha de proyecto para el piloto de triage con IA.' },
-  { who: 'ia', text: 'Listo. Preparé una ficha con objetivo, alcance, sponsor y 3 KPIs sugeridos:', card: true },
-]
+const WELCOME: Msg = {
+  who: 'ia',
+  text: 'Hola, soy InnovaIA, el copiloto del Comité de Innovación. ¿En qué te ayudo hoy? Puedo redactar actas, fichas de proyecto, KPIs, cartas Gantt e informes.',
+}
+
+interface Capabilities { capabilities: string[]; provider: string; configured: boolean }
 
 export default function InnovaIA() {
-  const [msgs, setMsgs] = useState<Msg[]>(initial)
+  const [msgs, setMsgs] = useState<Msg[]>([WELCOME])
   const [input, setInput] = useState('')
+
+  const { data: caps } = useQuery<Capabilities>({
+    queryKey: ['innovaia-capabilities'],
+    queryFn: async () => (await api.get('/innovaia/capabilities')).data,
+  })
+
+  const askMutation = useMutation({
+    mutationFn: (prompt: string) => api.post<{ answer: string }>('/innovaia/ask', { prompt }),
+  })
 
   function send(text: string) {
     const t = text.trim()
     if (!t) return
-    setMsgs((m) => [
-      ...m,
-      { who: 'user', text: t },
-      { who: 'ia', text: 'Trabajando en ello… puedo generar un borrador con el contexto del portafolio actual. (Demostración de interfaz.)' },
-    ])
+    setMsgs((m) => [...m, { who: 'user', text: t }])
     setInput('')
+    askMutation.mutate(t, {
+      onSuccess: (res) => setMsgs((m) => [...m, { who: 'ia', text: res.data.answer || 'No obtuve una respuesta del modelo.' }]),
+      onError: (err) => setMsgs((m) => [...m, { who: 'ia', text: apiErrorMessage(err, 'InnovaIA no está disponible en este momento.') }]),
+    })
   }
 
   return (
     <div className="p-4 sm:p-6 max-w-[880px] mx-auto flex flex-col h-full animate-viewin">
       {/* Cabecera */}
       <div className="flex items-center gap-3 mb-4.5 mb-[18px]">
-        <span
-          className="w-[42px] h-[42px] rounded-xl text-white flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg,var(--violet-500),var(--accent))' }}
-        >
+        <span className="w-[42px] h-[42px] rounded-xl text-white flex items-center justify-center" style={{ background: 'linear-gradient(135deg,var(--violet-500),var(--accent))' }}>
           <Sparkles size={20} />
         </span>
         <div>
           <h1 className="text-[21px] text-ink tracking-tight font-extrabold">InnovaIA</h1>
           <div className="text-[12.5px] text-muted">Copiloto del Comité de Innovación</div>
         </div>
-        <span
-          className="ml-auto inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-[5px] rounded-full"
-          style={{ color: 'var(--violet-600)', background: 'var(--violet-50)' }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--violet-500)' }} /> EN LÍNEA
-        </span>
+        {caps && (
+          <span
+            className="ml-auto inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-[5px] rounded-full"
+            style={caps.configured ? { color: 'var(--green-600)', background: 'var(--green-50)' } : { color: 'var(--amber-600)', background: 'var(--amber-50)' }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: caps.configured ? 'var(--green-500)' : 'var(--amber-500)' }} />
+            {caps.configured ? 'EN LÍNEA' : 'NO CONFIGURADO'}
+          </span>
+        )}
       </div>
+
+      {!caps?.configured && caps && (
+        <div className="mb-4 p-3 rounded-[10px] text-[12.5px]" style={{ background: 'var(--amber-50)', color: 'var(--amber-600)' }}>
+          InnovaIA no tiene un proveedor de IA configurado en este entorno (variables <code className="font-mono">INNOVAIA_PROVIDER</code> /{' '}
+          <code className="font-mono">INNOVAIA_API_KEY</code>). Puedes seguir probando la interfaz; las respuestas mostrarán este aviso.
+        </div>
+      )}
 
       {/* Conversación */}
       <div className="flex-1 flex flex-col gap-3.5 overflow-y-auto p-0.5 pb-4">
@@ -63,25 +81,17 @@ export default function InnovaIA() {
             </div>
           </div>
         ))}
-
-        {/* Ficha generada */}
-        <div className="self-start max-w-[80%] bg-card border border-line rounded-[14px] p-4">
-          <div className="text-[13px] font-bold text-ink mb-3">{iaCard.title}</div>
-          <div className="flex flex-col gap-2">
-            {iaCard.rows.map((r) => (
-              <div key={r.k} className="flex gap-3 text-[12.5px]">
-                <span className="w-[70px] shrink-0 font-mono text-muted">{r.k}</span>
-                <span className="text-ink">{r.v}</span>
-              </div>
-            ))}
+        {askMutation.isPending && (
+          <div className="flex justify-start">
+            <div className="px-4 py-3 text-sm text-muted border border-line rounded-[14px]">Pensando…</div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Composer */}
       <div className="shrink-0 pt-3">
         <div className="flex flex-wrap gap-2 mb-3">
-          {iaCaps.map((c) => (
+          {(caps?.capabilities ?? []).map((c) => (
             <button
               key={c}
               onClick={() => send(c)}
@@ -99,12 +109,7 @@ export default function InnovaIA() {
             placeholder="Pídele algo a InnovaIA…"
             className="flex-1 border-none bg-transparent outline-none text-sm text-body"
           />
-          <button
-            onClick={() => send(input)}
-            aria-label="Enviar"
-            className="w-10 h-10 shrink-0 rounded-[9px] text-white flex items-center justify-center"
-            style={{ background: 'var(--accent)' }}
-          >
+          <button onClick={() => send(input)} aria-label="Enviar" className="w-10 h-10 shrink-0 rounded-[9px] text-white flex items-center justify-center" style={{ background: 'var(--accent)' }}>
             <Send size={17} />
           </button>
         </div>
