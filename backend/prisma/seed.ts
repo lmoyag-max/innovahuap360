@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
+import { HUAP_UNITS } from './seed-units';
 
 const prisma = new PrismaClient();
 
@@ -18,6 +19,7 @@ const PERMISSIONS = [
   'settings.manage',
   'innovaia.use',
   'ideas.read', 'ideas.manage',
+  'units.read', 'units.manage',
 ];
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -28,15 +30,15 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'knowledge.read', 'knowledge.manage',
     'communications.read', 'communications.manage',
     'dashboard.read', 'content.manage', 'uploads.manage', 'audit.read', 'innovaia.use',
-    'ideas.read', 'ideas.manage',
+    'ideas.read', 'ideas.manage', 'units.read', 'units.manage',
   ],
   miembro_comite: [
     'projects.read', 'projects.manage',
     'minutes.read', 'minutes.manage',
     'knowledge.read', 'communications.read', 'dashboard.read', 'innovaia.use',
-    'ideas.read',
+    'ideas.read', 'units.read',
   ],
-  lector: ['projects.read', 'minutes.read', 'knowledge.read', 'communications.read', 'dashboard.read', 'ideas.read'],
+  lector: ['projects.read', 'minutes.read', 'knowledge.read', 'communications.read', 'dashboard.read', 'ideas.read', 'units.read'],
 };
 
 const ROLE_NAMES: Record<string, string> = {
@@ -60,14 +62,19 @@ async function main() {
     });
   }
 
+  const uniqueUnitNames = [...new Set(HUAP_UNITS.map((n) => n.trim()).filter(Boolean))];
+  for (const name of uniqueUnitNames) {
+    await prisma.unit.upsert({ where: { name }, create: { name }, update: {} });
+  }
+
   const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@innovahuap.local';
-  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
+  let existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
 
   if (!existingAdmin) {
     const adminPassword = process.env.ADMIN_PASSWORD ?? randomBytes(12).toString('base64url');
     const adminRole = await prisma.role.findUniqueOrThrow({ where: { key: 'admin' } });
 
-    await prisma.user.create({
+    existingAdmin = await prisma.user.create({
       data: {
         email: adminEmail,
         passwordHash: await argon2.hash(adminPassword),
@@ -88,6 +95,13 @@ async function main() {
       // eslint-disable-next-line no-console
       console.log('=====================================\n');
     }
+  }
+
+  // El administrador queda como primer miembro del Comité para recibir las
+  // notificaciones del Banco de Ideas; ajustable luego desde Administración.
+  const hasCommitteeMembers = (await prisma.committeeMember.count()) > 0;
+  if (!hasCommitteeMembers) {
+    await prisma.committeeMember.create({ data: { userId: existingAdmin.id, isActive: true } });
   }
 }
 

@@ -281,3 +281,41 @@ Lo descrito en este documento ya fue construido e integrado en el código:
   configurables desde Administración quedan como siguiente iteración natural, no construida en
   este pase para evitar una capa de configuración sin un caso de uso real que la exija todavía.
 - **Administración** y **Auditoría** no se tocaron — ya eran funcionales desde fases anteriores.
+
+## Addendum 2 — evolución del Banco de Ideas al formulario oficial (2026-06-20)
+
+A petición explícita del Comité, el Banco de Ideas descrito arriba (versión mínima: nombre,
+unidad libre, descripción, ámbito) se **evolucionó** —no se reconstruyó— al formulario oficial
+de postulación con ficha técnica. Cambios sobre lo ya existente:
+
+- **`Idea` ampliado** (misma tabla `ideas`, no se duplicó): cargo, correo, teléfono, unidad como
+  FK a una tabla maestra nueva (`units`), tipo de proyecto (Gestión Clínica / Administrativa /
+  Académico I+D+i), etapa declarada por el postulante, aprobación de jefatura (Sí/No) y ficha
+  técnica obligatoria (FK única a `uploads`). El campo libre `scope` (Clínico/Gestión/Digital/…)
+  se reemplazó por `projectType`, que es la clasificación oficial del Comité.
+- **`units`**: tabla maestra que reemplaza listas estáticas, cargada con el listado institucional
+  HUAP completo (deduplicado: varios servicios se repetían en el organigrama original bajo más
+  de una subdirección). CRUD en Administración → Unidades y Servicios, con activar/inactivar e
+  importación masiva desde Excel (`POST /admin/units/import-excel`).
+- **Ficha técnica real**: `GET /public/ideas/ficha-tecnica/template` genera un `.docx` editable
+  (librería `docx`) con las secciones oficiales (problema, solución, impacto, riesgos). El
+  postulante la descarga, completa y la vuelve a subir (`POST /public/ideas/upload-ficha`,
+  DOC/DOCX/PDF validados por magic bytes reales) antes de poder enviar la postulación.
+- **Estados ampliados**: `IdeaStatus` pasó de 5 a 8 valores (Recibida → En revisión ⇄ Observada →
+  Factibilidad → Aprobada/Rechazada → En ejecución → Cerrada), con `idea_status_history`
+  append-only trazando cada transición (quién, cuándo, nota).
+- **Comentarios del Comité** (`idea_comments`), auditados en `audit_logs` y notificados por
+  correo al postulante.
+- **`committee_members`**: en vez de duplicar `users`, es una tabla de relación (1 fila por
+  usuario suscrito a notificaciones), gestionable desde Administración → Usuarios.
+- **Notificaciones SMTP** reutilizando `MailService`/Mailhog ya configurado: al postulante al
+  recibir la idea y en cada cambio de estado/observación; al Comité completo al recibir una idea
+  nueva. No bloquean el flujo si el SMTP falla.
+- **Dashboards**: `GET /dashboard/overview` y `GET /dashboard/executive` ahora incluyen
+  indicadores de ideas (total, por estado, por servicio, por tipo, tendencia mensual, servicios
+  con más postulaciones) además de los ya existentes de portafolio.
+
+Validado de extremo a extremo en el stack Docker reconstruido: descarga de ficha → carga →
+postulación pública → triage (revisión, observación, factibilidad) → comentario → aprobación →
+conversión a proyecto, con notificaciones reales en Mailhog en cada paso e importación de
+unidades desde un Excel real. Datos de prueba eliminados tras la verificación.

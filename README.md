@@ -112,11 +112,11 @@ npm run dev                   # http://localhost:5173
 `/login` · `/recuperar-password` · `/restablecer-password/:token`
 
 ### Plataforma interna (requiere sesión)
-`/app` · `/app/portafolio` · `/app/actas` · `/app/factibilidad` · `/app/gantt` · `/app/conocimiento` ·
-`/app/comunicaciones` · `/app/innovaia` · `/app/ejecutivo`
+`/app` · `/app/ideas` · `/app/portafolio` · `/app/actas` · `/app/factibilidad` · `/app/gantt` ·
+`/app/conocimiento` · `/app/comunicaciones` · `/app/innovaia` · `/app/ejecutivo`
 
 ### Administración (requiere permisos RBAC)
-`/app/admin` · `/app/admin/contenido-publico` · `/app/admin/usuarios` · `/app/admin/roles` ·
+`/app/admin` · `/app/admin/contenido-publico` · `/app/admin/usuarios` · `/app/admin/unidades` · `/app/admin/roles` ·
 `/app/admin/configuracion` · `/app/admin/auditoria`
 
 ## Identidad visual
@@ -133,8 +133,12 @@ Los 9 módulos internos (Dashboard general, Portafolio, Actas, Factibilidad, Car
 Conocimiento, Comunicaciones, InnovaIA, Dashboard Ejecutivo) están conectados a sus APIs reales
 — ya no quedan datos de ejemplo en `/app/*`. Se agregaron además dos módulos nuevos:
 
-- **Banco de Ideas** (`/postula` público + `/app/ideas` interno): embudo de captura de ideas con
-  triage del Comité y conversión a proyecto real del portafolio.
+- **Banco de Ideas** (`/postula` público + `/app/ideas` interno): formulario oficial con datos
+  del solicitante, unidad/servicio (tabla maestra `units`, editable en Administración → Unidades
+  y Servicios, con importación desde Excel), tipo y etapa de proyecto, aprobación de jefatura y
+  **ficha técnica obligatoria** (se descarga una plantilla `.docx`, se completa y se vuelve a
+  subir). El Comité hace triage con 8 estados, comentarios y notificaciones por correo (SMTP), y
+  puede convertir una idea aprobada en un proyecto real del portafolio.
 - **Pipeline de Innovación**: gobernanza de cambio de etapa sobre `Project`
   (`PATCH /projects/:id/stage`), con trazabilidad en `project_stage_history` y un primer gate
   (no se puede avanzar a Piloto/Implementación/Escalamiento sin factibilidad registrada).

@@ -106,4 +106,21 @@ export class UsersService {
   touchLastLogin(id: string) {
     return this.prisma.user.update({ where: { id }, data: { lastLoginAt: new Date() } });
   }
+
+  /** Suscribe o desuscribe a un usuario de las notificaciones del Comité (Banco de Ideas). */
+  async setCommitteeMembership(id: string, isActive: boolean) {
+    await this.findOne(id);
+    return this.prisma.committeeMember.upsert({
+      where: { userId: id },
+      create: { userId: id, isActive },
+      update: { isActive },
+    });
+  }
+
+  listCommitteeMembers() {
+    return this.prisma.committeeMember.findMany({
+      where: { isActive: true },
+      include: { user: { select: SAFE_USER_SELECT } },
+    });
+  }
 }

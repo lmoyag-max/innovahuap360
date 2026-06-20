@@ -13,6 +13,11 @@ const MAGIC_BYTES: Record<string, (buf: Buffer) => boolean> = {
   'image/png': (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
   'image/jpeg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
   'image/webp': (b) => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP',
+  // .docx es un contenedor ZIP (firma PK\x03\x04); .doc es OLE Compound File.
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': (b) =>
+    b.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])),
+  'application/msword': (b) =>
+    b.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])),
 };
 
 async function readMagicBytes(path: string, length = 16): Promise<Buffer> {

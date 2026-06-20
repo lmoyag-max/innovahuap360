@@ -25,6 +25,7 @@ import { SettingsModule } from './settings/settings.module';
 import { HealthModule } from './health/health.module';
 import { InnovaIaModule } from './innovaia/innovaia.module';
 import { IdeasModule } from './ideas/ideas.module';
+import { UnitsModule } from './units/units.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { IdeasModule } from './ideas/ideas.module';
     HealthModule,
     InnovaIaModule,
     IdeasModule,
+    UnitsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

@@ -48,4 +48,27 @@ export class MailService {
       throw error;
     }
   }
+
+  private wrap(title: string, bodyHtml: string): string {
+    return `
+      <div style="font-family: 'Hanken Grotesk', Arial, sans-serif; max-width: 520px; margin: auto;">
+        <h2 style="color:#ed1d25;">InnovaHUAP 360 — Banco de Ideas</h2>
+        <h3 style="color:#222;">${title}</h3>
+        ${bodyHtml}
+        <p style="color:#888;font-size:12px;margin-top:24px;">Comité de Innovación · HUAP · Posta Central</p>
+      </div>
+    `;
+  }
+
+  /** Notificaciones genéricas usadas por el Banco de Ideas. No deben bloquear
+   *  el flujo principal si fallan: cada llamador debe capturar el error. */
+  async sendMail(to: string | string[], subject: string, title: string, bodyHtml: string): Promise<void> {
+    const recipients = Array.isArray(to) ? to.filter(Boolean) : [to];
+    if (recipients.length === 0) return;
+    try {
+      await this.transporter.sendMail({ from: this.from, to: recipients, subject, html: this.wrap(title, bodyHtml) });
+    } catch (error) {
+      this.logger.error(`No se pudo enviar el correo "${subject}" a ${recipients.join(', ')}`, error as Error);
+    }
+  }
 }

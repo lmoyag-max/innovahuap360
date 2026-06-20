@@ -1,59 +1,224 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { IdeaStatus } from '@prisma/client';
+import type { AppConfig } from '../config/configuration';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
+import { AuditService } from '../audit/audit.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { CreatePublicIdeaDto } from './dto/create-public-idea.dto';
 import { UpdateIdeaDto } from './dto/update-idea.dto';
+import { AddCommentDto } from './dto/add-comment.dto';
+import { buildFichaTecnicaDocx } from './ficha-tecnica.template';
+
+const IDEA_INCLUDE = {
+  unit: true,
+  fichaUpload: { select: { id: true, originalName: true, mimeType: true, sizeBytes: true } },
+  comments: { orderBy: { createdAt: 'desc' as const } },
+  statusHistory: { orderBy: { createdAt: 'desc' as const } },
+} as const;
+
+const STATUS_LABELS: Record<IdeaStatus, string> = {
+  RECIBIDA: 'Recibida',
+  EN_REVISION: 'En revisión',
+  OBSERVADA: 'Observada',
+  FACTIBILIDAD: 'En factibilidad',
+  APROBADA: 'Aprobada',
+  RECHAZADA: 'Rechazada',
+  EN_EJECUCION: 'En ejecución',
+  CERRADA: 'Cerrada',
+};
 
 @Injectable()
 export class IdeasService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly frontendUrl: string;
 
-  findAll(status?: IdeaStatus) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+    private readonly audit: AuditService,
+    private readonly uploads: UploadsService,
+    config: ConfigService<AppConfig, true>,
+  ) {
+    this.frontendUrl = config.get('frontendUrl', { infer: true });
+  }
+
+  findAll(filters: { status?: IdeaStatus; unitId?: string; search?: string }) {
     return this.prisma.idea.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        status: filters.status,
+        unitId: filters.unitId,
+        title: filters.search ? { contains: filters.search, mode: 'insensitive' } : undefined,
+      },
+      include: { unit: true, _count: { select: { comments: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async findOne(id: string) {
-    const idea = await this.prisma.idea.findUnique({ where: { id } });
+    const idea = await this.prisma.idea.findUnique({ where: { id }, include: IDEA_INCLUDE });
     if (!idea) throw new NotFoundException('Idea no encontrada');
     return idea;
   }
 
-  createPublic(dto: CreatePublicIdeaDto) {
-    return this.prisma.idea.create({ data: { ...dto, status: IdeaStatus.RECIBIDA } });
+  async getStats() {
+    const [total, byStatus, byUnit, byType] = await Promise.all([
+      this.prisma.idea.count(),
+      this.prisma.idea.groupBy({ by: ['status'], _count: { _all: true } }),
+      this.prisma.idea.groupBy({ by: ['unitId'], _count: { _all: true }, orderBy: { _count: { unitId: 'desc' } }, take: 8 }),
+      this.prisma.idea.groupBy({ by: ['projectType'], _count: { _all: true } }),
+    ]);
+    const units = await this.prisma.unit.findMany({ where: { id: { in: byUnit.map((u) => u.unitId) } } });
+    const unitNameById = new Map(units.map((u) => [u.id, u.name]));
+
+    return {
+      total,
+      byStatus: byStatus.map((s) => ({ status: s.status, count: s._count._all })),
+      byUnit: byUnit.map((u) => ({ unit: unitNameById.get(u.unitId) ?? u.unitId, count: u._count._all })),
+      byType: byType.map((t) => ({ projectType: t.projectType, count: t._count._all })),
+    };
   }
 
-  async update(id: string, dto: UpdateIdeaDto) {
-    await this.ensureExists(id);
-    return this.prisma.idea.update({ where: { id }, data: dto });
+  // ---- Ficha técnica ----
+
+  getFichaTecnicaTemplate() {
+    return buildFichaTecnicaDocx();
   }
 
-  async convertToProject(id: string, ownerName: string) {
+  async uploadFicha(file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No se recibió ningún archivo');
+    return this.uploads.register(file);
+  }
+
+  // ---- Postulación pública ----
+
+  async createPublic(dto: CreatePublicIdeaDto) {
+    const idea = await this.prisma.idea.create({
+      data: { ...dto, status: IdeaStatus.RECIBIDA },
+      include: IDEA_INCLUDE,
+    });
+
+    await this.prisma.ideaStatusHistory.create({
+      data: { ideaId: idea.id, fromStatus: null, toStatus: IdeaStatus.RECIBIDA, changedByName: 'Postulante (portal público)' },
+    });
+
+    await this.notifyCreated(idea);
+    return idea;
+  }
+
+  async update(id: string, dto: UpdateIdeaDto, changedByName: string) {
+    const before = await this.findOne(id);
+
+    const updated = await this.prisma.idea.update({
+      where: { id },
+      data: dto,
+      include: IDEA_INCLUDE,
+    });
+
+    if (dto.status && dto.status !== before.status) {
+      await this.prisma.ideaStatusHistory.create({
+        data: { ideaId: id, fromStatus: before.status, toStatus: dto.status, changedByName, note: dto.triageNote },
+      });
+      await this.notifyStatusChanged(updated, dto.status, dto.triageNote);
+      await this.audit.log({ action: 'ideas.status_change', entityType: 'idea', entityId: id, metadata: { from: before.status, to: dto.status } });
+    }
+
+    return updated;
+  }
+
+  async addComment(id: string, dto: AddCommentDto, authorId: string, authorName: string) {
     const idea = await this.findOne(id);
-    if (idea.status === IdeaStatus.CONVERTIDA) {
+    const comment = await this.prisma.ideaComment.create({
+      data: { ideaId: id, authorId, authorName, comment: dto.comment },
+    });
+    await this.audit.log({ userId: authorId, action: 'ideas.comment', entityType: 'idea', entityId: id });
+    await this.notifyComment(idea, authorName, dto.comment);
+    return comment;
+  }
+
+  async convertToProject(id: string, changedByName: string) {
+    const idea = await this.findOne(id);
+    if (idea.status === IdeaStatus.EN_EJECUCION || idea.status === IdeaStatus.CERRADA) {
       throw new BadRequestException('Esta idea ya fue convertida en proyecto');
+    }
+    if (idea.status !== IdeaStatus.APROBADA) {
+      throw new ConflictException('Solo se puede convertir en proyecto una idea Aprobada');
     }
 
     const project = await this.prisma.project.create({
       data: {
         name: idea.title,
         description: idea.description,
-        category: idea.scope ?? undefined,
-        ownerName,
+        category: idea.projectType,
+        ownerName: changedByName,
         sponsor: idea.proponentName,
       },
     });
 
-    return this.prisma.idea.update({
+    const updated = await this.prisma.idea.update({
       where: { id },
-      data: { status: IdeaStatus.CONVERTIDA, resultingProjectId: project.id },
+      data: { status: IdeaStatus.EN_EJECUCION, resultingProjectId: project.id },
+      include: IDEA_INCLUDE,
     });
+
+    await this.prisma.ideaStatusHistory.create({
+      data: { ideaId: id, fromStatus: idea.status, toStatus: IdeaStatus.EN_EJECUCION, changedByName, note: `Convertida en proyecto: ${project.name}` },
+    });
+    await this.notifyStatusChanged(updated, IdeaStatus.EN_EJECUCION, `Tu idea fue convertida en el proyecto "${project.name}"`);
+
+    return updated;
   }
 
-  private async ensureExists(id: string) {
-    const exists = await this.prisma.idea.findUnique({ where: { id }, select: { id: true } });
-    if (!exists) throw new NotFoundException('Idea no encontrada');
+  // ---- Notificaciones (no bloquean el flujo si fallan) ----
+
+  private async committeeEmails(): Promise<string[]> {
+    const members = await this.prisma.committeeMember.findMany({
+      where: { isActive: true },
+      include: { user: { select: { email: true } } },
+    });
+    return members.map((m) => m.user.email);
+  }
+
+  private async notifyCreated(idea: { id: string; title: string; proponentName: string; email: string }) {
+    const ideasUrl = `${this.frontendUrl}/app/ideas`;
+
+    await this.mail.sendMail(
+      idea.email,
+      'InnovaHUAP 360 — Recibimos tu idea',
+      'Idea recibida',
+      `<p>Hola ${idea.proponentName},</p>
+       <p>Recibimos tu postulación <strong>"${idea.title}"</strong>. El Comité de Innovación la revisará en las próximas sesiones de triage y te notificaremos por este medio cada vez que cambie de estado.</p>`,
+    );
+
+    const committee = await this.committeeEmails();
+    await this.mail.sendMail(
+      committee,
+      `Nueva idea recibida: ${idea.title}`,
+      'Nueva idea en el Banco de Ideas',
+      `<p>${idea.proponentName} postuló una nueva idea: <strong>"${idea.title}"</strong>.</p>
+       <p><a href="${ideasUrl}">Revisar en el Banco de Ideas</a></p>`,
+    );
+  }
+
+  private async notifyStatusChanged(idea: { title: string; proponentName: string; email: string }, status: IdeaStatus, note?: string) {
+    await this.mail.sendMail(
+      idea.email,
+      `InnovaHUAP 360 — Tu idea pasó a "${STATUS_LABELS[status]}"`,
+      'Actualización de tu idea',
+      `<p>Hola ${idea.proponentName},</p>
+       <p>Tu idea <strong>"${idea.title}"</strong> cambió de estado a <strong>${STATUS_LABELS[status]}</strong>.</p>
+       ${note ? `<p>Comentario del Comité: <em>${note}</em></p>` : ''}`,
+    );
+  }
+
+  private async notifyComment(idea: { title: string; proponentName: string; email: string }, authorName: string, comment: string) {
+    await this.mail.sendMail(
+      idea.email,
+      `InnovaHUAP 360 — Nueva observación en "${idea.title}"`,
+      'El Comité dejó una observación',
+      `<p>Hola ${idea.proponentName},</p>
+       <p>${authorName} dejó una observación en tu idea <strong>"${idea.title}"</strong>:</p>
+       <p style="background:#f6f8fa;padding:10px;border-radius:6px;">${comment}</p>`,
+    );
   }
 }

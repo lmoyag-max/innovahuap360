@@ -32,6 +32,7 @@ model User {
   resetTokens     PasswordResetToken[]
   auditLogs       AuditLog[]
   uploads         Upload[]
+  committeeMembership CommitteeMember?
 
   @@map("users")
 }
@@ -203,36 +204,125 @@ model ProjectTask {
   @@map("project_tasks")
 }
 
+// ===================== Unidades y servicios HUAP =====================
+// Tabla maestra que reemplaza las listas estáticas de "unidad/servicio"
+// usadas en formularios (Banco de Ideas, etc). Editable desde Administración,
+// con importación masiva desde Excel.
+
+model Unit {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ideas     Idea[]
+
+  @@map("units")
+}
+
+// Miembros del Comité que reciben notificaciones del Banco de Ideas. Es una
+// tabla de relación liviana sobre `users` (no duplica identidad): solo marca
+// quién está suscrito a las notificaciones del Comité y permite activarlo o
+// desactivarlo sin tocar el rol del usuario.
+model CommitteeMember {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("committee_members")
+}
+
 // ===================== Banco de Ideas =====================
-// Embudo formal de captura de ideas: cualquiera postula vía portal público,
-// el Comité hace triage y, si corresponde, la convierte en un Project real
-// (etapa IDEA) sin perder trazabilidad de su origen.
+// Embudo formal de captura de ideas: cualquiera postula vía portal público
+// con la ficha oficial del Comité, que hace triage, comenta, decide y —si
+// corresponde— la convierte en un Project real, sin perder trazabilidad.
 
 enum IdeaStatus {
   RECIBIDA
-  EN_TRIAGE
+  EN_REVISION
+  OBSERVADA
+  FACTIBILIDAD
   APROBADA
   RECHAZADA
-  CONVERTIDA
+  EN_EJECUCION
+  CERRADA
+}
+
+enum IdeaProjectType {
+  GESTION_CLINICA
+  GESTION_ADMINISTRATIVA
+  ACADEMICO_IDI
+}
+
+enum IdeaProjectStage {
+  IDEA
+  DESARROLLO
+  PILOTO_IMPLEMENTACION
 }
 
 model Idea {
-  id                String     @id @default(uuid())
-  title             String
-  description       String
-  proponentName     String     @map("proponent_name")
-  unit              String?
-  scope             String? // Clínico, Gestión, Digital, Humanización, IA
-  status            IdeaStatus @default(RECIBIDA)
-  votes             Int        @default(0)
-  triageNote        String?    @map("triage_note")
-  resultingProjectId String?   @map("resulting_project_id")
-  resultingProject  Project?   @relation(fields: [resultingProjectId], references: [id])
-  createdAt         DateTime   @default(now()) @map("created_at")
-  updatedAt         DateTime   @updatedAt @map("updated_at")
+  id                 String           @id @default(uuid())
+  // Datos del solicitante
+  proponentName      String           @map("proponent_name")
+  position           String // Cargo
+  email              String
+  phone              String
+  unitId             String           @map("unit_id")
+  unit               Unit             @relation(fields: [unitId], references: [id])
+  // Información del proyecto
+  projectType        IdeaProjectType  @map("project_type")
+  projectStage       IdeaProjectStage @map("project_stage")
+  title              String // Nombre del proyecto
+  description        String
+  jefaturaApproval   Boolean          @map("jefatura_approval")
+  // Ficha técnica obligatoria (DOC/DOCX/PDF)
+  fichaUploadId      String           @unique @map("ficha_upload_id")
+  fichaUpload        Upload           @relation(fields: [fichaUploadId], references: [id])
+  // Flujo
+  status             IdeaStatus       @default(RECIBIDA)
+  votes              Int              @default(0)
+  triageNote         String?          @map("triage_note")
+  resultingProjectId String?          @map("resulting_project_id")
+  resultingProject   Project?         @relation(fields: [resultingProjectId], references: [id])
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  comments       IdeaComment[]
+  statusHistory  IdeaStatusHistory[]
 
   @@index([status])
+  @@index([unitId])
   @@map("ideas")
+}
+
+model IdeaComment {
+  id         String   @id @default(uuid())
+  ideaId     String   @map("idea_id")
+  idea       Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  authorId   String?  @map("author_id")
+  authorName String   @map("author_name")
+  comment    String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([ideaId])
+  @@map("idea_comments")
+}
+
+model IdeaStatusHistory {
+  id            String      @id @default(uuid())
+  ideaId        String      @map("idea_id")
+  idea          Idea        @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  fromStatus    IdeaStatus? @map("from_status")
+  toStatus      IdeaStatus  @map("to_status")
+  changedByName String?     @map("changed_by_name")
+  note          String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@index([ideaId])
+  @@map("idea_status_history")
 }
 
 // ===================== Actas y acuerdos =====================
@@ -361,6 +451,8 @@ model Upload {
   uploadedById String?  @map("uploaded_by_id")
   uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime @default(now()) @map("created_at")
+
+  ideaFicha    Idea?
 
   @@map("uploads")
 }

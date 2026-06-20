@@ -16,6 +16,21 @@ interface Overview {
     minute: { title: string }
   }[]
   recentActivity: { id: string; action: string; createdAt: string; user: { fullName: string; initials: string } | null }[]
+  ideas: {
+    total: number
+    received: number
+    inReview: number
+    approved: number
+    rejected: number
+    byUnit: { unit: string; count: number }[]
+    byType: { projectType: string; count: number }[]
+  }
+}
+
+const PROJECT_TYPE_LABEL: Record<string, string> = {
+  GESTION_CLINICA: 'Gestión Clínica',
+  GESTION_ADMINISTRATIVA: 'Gestión Administrativa',
+  ACADEMICO_IDI: 'Académico I+D+i',
 }
 
 export default function Dashboard() {
@@ -142,6 +157,52 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Banco de Ideas */}
+      {data?.ideas && (
+        <div className="mt-4 bg-card border border-line rounded-card p-[22px]">
+          <h3 className="text-base text-ink mb-4 font-bold">Banco de Ideas</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4.5 mb-5">
+            {[
+              { v: data.ideas.total, l: 'Total ideas' },
+              { v: data.ideas.received, l: 'Recibidas' },
+              { v: data.ideas.inReview, l: 'En revisión' },
+              { v: data.ideas.approved, l: 'Aprobadas' },
+              { v: data.ideas.rejected, l: 'Rechazadas' },
+            ].map((k) => (
+              <div key={k.l} className="bg-inset rounded-[10px] p-3 text-center">
+                <div className="font-mono text-[20px] font-bold text-ink leading-none">{k.v}</div>
+                <div className="text-[11px] text-muted mt-1 font-semibold">{k.l}</div>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <h4 className="text-[12.5px] font-bold text-subtle mb-2 uppercase tracking-wide">Por servicio</h4>
+              <div className="flex flex-col gap-1.5">
+                {data.ideas.byUnit.length === 0 && <p className="text-[12px] text-muted">Sin datos.</p>}
+                {data.ideas.byUnit.map((u) => (
+                  <div key={u.unit} className="flex items-center justify-between text-[12.5px] text-body">
+                    <span className="truncate">{u.unit}</span>
+                    <span className="font-mono font-semibold text-ink">{u.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-[12.5px] font-bold text-subtle mb-2 uppercase tracking-wide">Por tipo de proyecto</h4>
+              <div className="flex flex-col gap-1.5">
+                {data.ideas.byType.map((t) => (
+                  <div key={t.projectType} className="flex items-center justify-between text-[12.5px] text-body">
+                    <span>{PROJECT_TYPE_LABEL[t.projectType] ?? t.projectType}</span>
+                    <span className="font-mono font-semibold text-ink">{t.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

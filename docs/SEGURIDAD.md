@@ -23,6 +23,18 @@
 | `trust proxy` | `main.ts` | El stack corre siempre detrás de Nginx; sin esto, el rate limiting y la IP de auditoría quedarían mal atribuidos a la IP del proxy |
 | Server tokens ocultos | `nginx/nginx.conf`, `frontend/nginx.conf` | `server_tokens off` — no se anuncia la versión de Nginx |
 
+## Banco de Ideas — controles específicos
+
+| Control | Dónde | Detalle |
+|---|---|---|
+| Subida de ficha técnica | `ideas.controller.ts` | Lista blanca DOC/DOCX/PDF por extensión **y** verificación de magic bytes real (`uploads.service.ts`: OLE para `.doc`, ZIP `PK\x03\x04` para `.docx`, `%PDF` para PDF). Bloquea por diseño EXE/BAT/CMD/JS y cualquier archivo cuyo contenido no coincida con el tipo declarado. Límite de 10 MB. |
+| Rate limiting en rutas públicas sin sesión | `ideas.controller.ts` | `POST /public/ideas` 5 req/min/IP; `POST /public/ideas/upload-ficha` 10 req/min/IP — mismo criterio que `auth.controller.ts` para rutas públicas sensibles |
+| Import de unidades desde Excel | `units.controller.ts` | Requiere `units.manage` (solo administradores autenticados, no es una ruta pública); límite de 2 MB; solo MIME de Excel |
+| **Riesgo residual documentado:** `xlsx` (SheetJS) tiene 2 CVE de severidad alta sin parche publicado en el registro de npm (prototype pollution y ReDoS — los fixes de SheetJS solo se distribuyen por su propio CDN, fuera de npm). Se acepta el riesgo porque el endpoint que lo usa está detrás de `units.manage` (no es de cara al público) y el archivo está acotado a 2 MB. **Seguimiento recomendado:** migrar a la distribución oficial de SheetJS fuera de npm, o a una librería de parseo de Excel sin este historial, en un ciclo dedicado. | | |
+| Auditoría de decisiones del Comité | `audit_logs` vía `AuditService` | `ideas.status_change` y `ideas.comment` quedan registrados con usuario y metadata (estado anterior/nuevo) |
+| Trazabilidad de cambios de estado | `idea_status_history` | Tabla append-only — nunca se sobrescribe, solo se agregan filas |
+| Notificaciones no bloqueantes | `mail.service.ts` (`sendMail`) | Un fallo de SMTP se loguea pero nunca interrumpe la creación/triage de una idea (evita que un problema de correo tumbe el flujo operativo) |
+
 ## Resultado de `npm audit`
 
 ### Backend

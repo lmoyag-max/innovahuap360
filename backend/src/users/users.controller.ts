@@ -57,4 +57,16 @@ export class UsersController {
   resetPassword(@Param('id') id: string, @Body() dto: ResetPasswordDto) {
     return this.usersService.resetPasswordByAdmin(id, dto.newPassword);
   }
+
+  @Get('committee-members/list')
+  @RequirePermissions('users.read')
+  listCommitteeMembers() {
+    return this.usersService.listCommitteeMembers();
+  }
+
+  @Patch(':id/committee-membership')
+  @RequirePermissions('users.manage')
+  setCommitteeMembership(@Param('id') id: string, @Body() dto: SetActiveDto) {
+    return this.usersService.setCommitteeMembership(id, dto.isActive);
+  }
 }

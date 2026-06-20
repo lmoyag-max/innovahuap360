@@ -13,6 +13,12 @@ interface ExecutiveOverview {
   curatedKpis: CuratedKpi[]
   curatedImpact: CuratedImpact[]
   curatedStrategicLines: CuratedStrategicLine[]
+  ideas: {
+    approved: number
+    implemented: number
+    topUnits: { unit: string; count: number }[]
+    trend: { month: string; count: number }[]
+  }
 }
 
 export default function Ejecutivo() {
@@ -98,6 +104,45 @@ export default function Ejecutivo() {
           )}
         </div>
       </div>
+
+      {/* Banco de Ideas — tendencia e impacto */}
+      {data?.ideas && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+          <div className="bg-card border border-line rounded-card p-5 sm:p-6">
+            <h3 className="text-base text-ink mb-1 font-bold">Tendencia de ideas (últimos 6 meses)</h3>
+            <p className="text-[12px] text-muted mb-4">{data.ideas.approved} aprobadas · {data.ideas.implemented} implementadas</p>
+            {data.ideas.trend.length === 0 ? (
+              <p className="text-[12.5px] text-muted">Sin datos suficientes todavía.</p>
+            ) : (
+              <div className="flex items-end justify-around gap-3 h-[140px]">
+                {data.ideas.trend.map((t) => {
+                  const max = Math.max(1, ...data.ideas.trend.map((x) => x.count))
+                  return (
+                    <div key={t.month} className="flex-1 flex flex-col items-center h-full justify-end gap-1.5">
+                      <span className="font-mono text-[12px] font-bold text-ink">{t.count}</span>
+                      <div className="w-full max-w-[34px] rounded-t-md" style={{ height: `${(t.count / max) * 100}%`, background: 'var(--accent)' }} />
+                      <span className="text-[10.5px] text-muted">{new Date(t.month).toLocaleDateString('es-CL', { month: 'short' })}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-card border border-line rounded-card p-5 sm:p-6">
+            <h3 className="text-base text-ink mb-4 font-bold">Servicios con más postulaciones</h3>
+            <div className="flex flex-col gap-2">
+              {data.ideas.topUnits.length === 0 && <p className="text-[12.5px] text-muted">Sin datos todavía.</p>}
+              {data.ideas.topUnits.map((u) => (
+                <div key={u.unit} className="flex items-center justify-between text-[13px] text-body">
+                  <span className="truncate">{u.unit}</span>
+                  <span className="font-mono font-semibold text-ink">{u.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
