@@ -1,7 +1,7 @@
 import {
   Home, Users, FileText, BookOpen, Megaphone, CalendarDays, Sparkles, FolderKanban,
   LayoutGrid, GanttChartSquare, ClipboardCheck, BarChart3, ShieldCheck, UserCog,
-  KeyRound, Settings, ScrollText, Lightbulb, Building2,
+  KeyRound, Settings, ScrollText, Lightbulb, Building2, Mail,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -63,6 +63,7 @@ export const appNav: NavGroup[] = [
       { label: 'Unidades y Servicios', to: '/app/admin/unidades', icon: Building2, permission: 'units.manage' },
       { label: 'Roles', to: '/app/admin/roles', icon: KeyRound, permission: 'roles.manage' },
       { label: 'Configuración', to: '/app/admin/configuracion', icon: Settings, permission: 'settings.manage' },
+      { label: 'Correo', to: '/app/admin/correo', icon: Mail, permission: 'settings.manage' },
       { label: 'Auditoría', to: '/app/admin/auditoria', icon: ScrollText, permission: 'audit.read' },
     ],
   },

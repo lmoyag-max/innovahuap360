@@ -40,6 +40,7 @@ import Roles from './pages/admin/Roles'
 import Configuracion from './pages/admin/Configuracion'
 import Auditoria from './pages/admin/Auditoria'
 import UnidadesServicios from './pages/admin/UnidadesServicios'
+import Correo from './pages/admin/Correo'
 
 export default function App() {
   return (
@@ -96,6 +97,7 @@ export default function App() {
             </Route>
             <Route element={<RequirePermission permission="settings.manage" />}>
               <Route path="configuracion" element={<Configuracion />} />
+              <Route path="correo" element={<Correo />} />
             </Route>
             <Route element={<RequirePermission permission="audit.read" />}>
               <Route path="auditoria" element={<Auditoria />} />

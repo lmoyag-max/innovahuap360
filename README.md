@@ -103,6 +103,70 @@ npm run dev                   # http://localhost:5173
 - [`docs/CLAUDE_MASTER_PROMPT_INNOVAHUAP360.md`](docs/CLAUDE_MASTER_PROMPT_INNOVAHUAP360.md) — Especificación
   funcional original del proyecto.
 
+## Correo (SMTP)
+
+Módulo centralizado en `backend/src/mail/` (`MailModule` → `MailService` + `MailController`), usado por
+recuperación de contraseña, Banco de Ideas y el panel de administración. Plantillas Handlebars en
+`backend/src/mail/templates/*.hbs`.
+
+**Configurar SMTP**
+
+1. Completa en `backend/.env` (o en el `.env` de la raíz si usas Docker Compose):
+   ```
+   SMTP_HOST=mail.huap.online
+   SMTP_PORT=465
+   SMTP_SECURE=true
+   SMTP_USER=operaciones@huap.online
+   SMTP_PASS=<contraseña real — solo en este archivo, nunca en .env.example ni en Git>
+   SMTP_FROM=operaciones@huap.online
+   SMTP_FROM_NAME=InnovaHUAP 360
+   ```
+2. En desarrollo con Docker (perfil `dev`) puedes usar Mailhog en vez del SMTP real: deja
+   `SMTP_HOST=mailhog`, `SMTP_PORT=1025`, `SMTP_SECURE=false`, sin usuario/contraseña. Los correos
+   quedan capturados en http://localhost:8025 sin salir a Internet.
+3. Reinicia el backend (`docker compose --profile dev up -d --force-recreate backend` o
+   `npm run start:dev`) para que tome las variables nuevas.
+
+**Probar `/mail/health`** (requiere sesión con permiso `settings.manage`):
+
+```bash
+curl http://localhost/api/mail/health -H "Authorization: Bearer <accessToken>"
+```
+
+Devuelve `host/port/user/from/fromName` (nunca `SMTP_PASS`) y el resultado de una verificación de
+conexión + autenticación en vivo (`connection: "ok" | "error"`). También disponible desde
+**Administración → Correo** (`/app/admin/correo`) en la plataforma interna.
+
+**Probar `/mail/test`** (mismo permiso, limitado a 3 envíos/minuto):
+
+```bash
+curl -X POST http://localhost/api/mail/test \
+  -H "Authorization: Bearer <accessToken>" -H "Content-Type: application/json" \
+  -d '{"to":"tu-correo@huap.cl"}'
+```
+
+Responde `204 No Content` si el envío fue aceptado por el SMTP; cualquier falla queda en los logs
+del backend (`docker compose logs backend`) sin exponer la contraseña, y la acción se audita como
+`mail.test_sent`.
+
+**Validar recuperación de contraseña**: `POST /api/auth/forgot-password` con `{"email": "..."}`
+siempre responde igual exista o no el correo (anti-enumeración); si el usuario existe y está
+activo, dispara `sendForgotPasswordEmail`. Tras restablecer (`POST /api/auth/reset-password`) o
+cambiar la propia contraseña (`POST /api/auth/change-password`), se envía además un correo de
+confirmación (`sendPasswordResetSuccessEmail`) y se cierran las sesiones activas.
+
+**Revisar errores**: el envío de correo nunca bloquea el flujo que lo dispara (login, recuperación,
+triage de ideas) — un fallo de SMTP solo queda registrado en `docker compose logs backend` con el
+prefijo `[MailService]`. Causas típicas: credenciales incorrectas, el destinatario no existe en el
+dominio receptor (rechazo 550) o el puerto 465/587 bloqueado por firewall.
+
+**Cambiar la contraseña SMTP**: edita `SMTP_PASS` en el `.env` correspondiente y reinicia el
+backend. Nunca se guarda en código, logs ni se devuelve por API.
+
+**Proteger `.env`**: `.env`, `.env.*` están en `.gitignore` (con excepción explícita de
+`!.env.example`) tanto en la raíz como en `backend/`. Verifica con `git check-ignore -v .env
+backend/.env` antes de hacer commits.
+
 ## Rutas
 
 ### Portal público
@@ -117,7 +181,7 @@ npm run dev                   # http://localhost:5173
 
 ### Administración (requiere permisos RBAC)
 `/app/admin` · `/app/admin/contenido-publico` · `/app/admin/usuarios` · `/app/admin/unidades` · `/app/admin/roles` ·
-`/app/admin/configuracion` · `/app/admin/auditoria`
+`/app/admin/configuracion` · `/app/admin/correo` · `/app/admin/auditoria`
 
 ## Identidad visual
 

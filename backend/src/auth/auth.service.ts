@@ -183,9 +183,7 @@ export class AuthService {
     });
 
     const resetUrl = `${this.config.get('frontendUrl', { infer: true })}/restablecer-password/${raw}`;
-    await this.mailService.sendPasswordReset(user.email, user.fullName, resetUrl).catch((error) => {
-      this.logger.error('Fallo el envío de correo de recuperación', error as Error);
-    });
+    await this.mailService.sendForgotPasswordEmail(user.email, user.fullName, resetUrl);
 
     await this.auditService.log({ userId: user.id, action: 'auth.forgot_password', ip: meta.ip, userAgent: meta.userAgent });
   }
@@ -198,6 +196,7 @@ export class AuthService {
       throw new BadRequestException('El enlace de recuperación no es válido o expiró');
     }
 
+    const user = await this.usersService.findByIdWithAuth(stored.userId);
     const passwordHash = await argon2.hash(newPassword);
     await this.prisma.$transaction([
       this.prisma.user.update({ where: { id: stored.userId }, data: { passwordHash, mustChangePass: false } }),
@@ -209,6 +208,7 @@ export class AuthService {
       }),
     ]);
 
+    if (user) await this.mailService.sendPasswordResetSuccessEmail(user.email, user.fullName);
     await this.auditService.log({ userId: stored.userId, action: 'auth.reset_password' });
   }
 
@@ -221,6 +221,7 @@ export class AuthService {
 
     const passwordHash = await argon2.hash(newPassword);
     await this.usersService.updateOwnPassword(userId, passwordHash);
+    await this.mailService.sendPasswordResetSuccessEmail(user.email, user.fullName);
     await this.auditService.log({ userId, action: 'auth.change_password' });
   }
 }

@@ -16,6 +16,7 @@ export interface AppConfig {
     user: string;
     pass: string;
     from: string;
+    fromName: string;
     secure: boolean;
   };
   frontendUrl: string;
@@ -56,7 +57,8 @@ export default (): AppConfig => ({
     port: Number(process.env.SMTP_PORT ?? 1025),
     user: process.env.SMTP_USER ?? '',
     pass: process.env.SMTP_PASS ?? '',
-    from: process.env.SMTP_FROM ?? 'InnovaHUAP 360 <no-reply@innovahuap.local>',
+    from: process.env.SMTP_FROM ?? 'no-reply@innovahuap.local',
+    fromName: process.env.SMTP_FROM_NAME ?? 'InnovaHUAP 360',
     secure: process.env.SMTP_SECURE === 'true',
   },
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:5173',

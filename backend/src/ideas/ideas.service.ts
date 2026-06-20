@@ -179,46 +179,45 @@ export class IdeasService {
     return members.map((m) => m.user.email);
   }
 
-  private async notifyCreated(idea: { id: string; title: string; proponentName: string; email: string }) {
-    const ideasUrl = `${this.frontendUrl}/app/ideas`;
+  private folio(ideaId: string): string {
+    return `SOL-${ideaId.slice(0, 8).toUpperCase()}`;
+  }
 
-    await this.mail.sendMail(
-      idea.email,
-      'InnovaHUAP 360 — Recibimos tu idea',
-      'Idea recibida',
-      `<p>Hola ${idea.proponentName},</p>
-       <p>Recibimos tu postulación <strong>"${idea.title}"</strong>. El Comité de Innovación la revisará en las próximas sesiones de triage y te notificaremos por este medio cada vez que cambie de estado.</p>`,
-    );
+  private async notifyCreated(idea: { id: string; title: string; proponentName: string; email: string; unit?: { name: string } | null }) {
+    const ideasUrl = `${this.frontendUrl}/app/ideas`;
+    const vars = { proponentName: idea.proponentName, title: idea.title, folio: this.folio(idea.id), unitName: idea.unit?.name ?? '—' };
+
+    await this.mail.sendIdeaCreatedApplicantEmail(idea.email, vars);
 
     const committee = await this.committeeEmails();
-    await this.mail.sendMail(
-      committee,
-      `Nueva idea recibida: ${idea.title}`,
-      'Nueva idea en el Banco de Ideas',
-      `<p>${idea.proponentName} postuló una nueva idea: <strong>"${idea.title}"</strong>.</p>
-       <p><a href="${ideasUrl}">Revisar en el Banco de Ideas</a></p>`,
-    );
+    await this.mail.sendIdeaCreatedCommitteeEmail(committee, { ...vars, ideasUrl });
   }
 
   private async notifyStatusChanged(idea: { title: string; proponentName: string; email: string }, status: IdeaStatus, note?: string) {
-    await this.mail.sendMail(
-      idea.email,
-      `InnovaHUAP 360 — Tu idea pasó a "${STATUS_LABELS[status]}"`,
-      'Actualización de tu idea',
-      `<p>Hola ${idea.proponentName},</p>
-       <p>Tu idea <strong>"${idea.title}"</strong> cambió de estado a <strong>${STATUS_LABELS[status]}</strong>.</p>
-       ${note ? `<p>Comentario del Comité: <em>${note}</em></p>` : ''}`,
+    await this.mail.sendIdeaStatusChangedEmail(idea.email, {
+      proponentName: idea.proponentName,
+      title: idea.title,
+      statusLabel: STATUS_LABELS[status],
+      note,
+    });
+
+    const committee = await this.committeeEmails();
+    await this.mail.sendGenericNotificationEmail(
+      committee,
+      `Idea actualizada: ${idea.title}`,
+      'Cambio de estado en el Banco de Ideas',
+      `<p>La idea <strong>"${MailService.escapeHtml(idea.title)}"</strong> de ${MailService.escapeHtml(idea.proponentName)} cambió a <strong>${STATUS_LABELS[status]}</strong>.</p>`,
     );
   }
 
   private async notifyComment(idea: { title: string; proponentName: string; email: string }, authorName: string, comment: string) {
-    await this.mail.sendMail(
+    await this.mail.sendGenericNotificationEmail(
       idea.email,
       `InnovaHUAP 360 — Nueva observación en "${idea.title}"`,
       'El Comité dejó una observación',
-      `<p>Hola ${idea.proponentName},</p>
-       <p>${authorName} dejó una observación en tu idea <strong>"${idea.title}"</strong>:</p>
-       <p style="background:#f6f8fa;padding:10px;border-radius:6px;">${comment}</p>`,
+      `<p>Hola ${MailService.escapeHtml(idea.proponentName)},</p>
+       <p>${MailService.escapeHtml(authorName)} dejó una observación en tu idea <strong>"${MailService.escapeHtml(idea.title)}"</strong>:</p>
+       <p style="background:#f6f8fa;padding:10px;border-radius:6px;">${MailService.escapeHtml(comment)}</p>`,
     );
   }
 }
