@@ -1,0 +1,28 @@
+# Overrides de producción.
+# Uso: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Diferencias respecto a docker-compose.yml:
+# - PostgreSQL y el backend dejan de publicar sus puertos al host (solo
+#   accesibles dentro de la red interna de Docker) — OWASP: nunca exponer
+#   la base de datos.
+# - Mailhog no aplica (no se usa --profile dev), se debe configurar SMTP real.
+# - RUN_SEED por defecto en false: el seed inicial se ejecuta una sola vez
+#   de forma explícita, no en cada despliegue.
+# - Swagger queda deshabilitado automáticamente (NODE_ENV=production).
+
+services:
+  postgres:
+    ports: []
+
+  backend:
+    environment:
+      NODE_ENV: production
+      RUN_SEED: ${RUN_SEED:-false}
+    ports: []
+    restart: always
+
+  frontend:
+    restart: always
+
+  nginx:
+    restart: always
