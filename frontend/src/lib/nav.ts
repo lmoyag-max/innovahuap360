@@ -1,6 +1,7 @@
 import {
   Home, Users, FileText, BookOpen, Megaphone, CalendarDays, Sparkles, FolderKanban,
-  LayoutGrid, GanttChartSquare, ClipboardCheck, BarChart3,
+  LayoutGrid, GanttChartSquare, ClipboardCheck, BarChart3, ShieldCheck, UserCog,
+  KeyRound, Settings, ScrollText,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -9,6 +10,7 @@ export interface NavItem {
   to: string
   icon: LucideIcon
   end?: boolean
+  permission?: string
 }
 export interface NavGroup {
   title: string
@@ -50,6 +52,16 @@ export const appNav: NavGroup[] = [
     items: [
       { label: 'InnovaIA', to: '/app/innovaia', icon: Sparkles },
       { label: 'Dashboard Ejecutivo', to: '/app/ejecutivo', icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Administración',
+    items: [
+      { label: 'Contenido público', to: '/app/admin/contenido-publico', icon: ShieldCheck, permission: 'content.manage' },
+      { label: 'Usuarios', to: '/app/admin/usuarios', icon: UserCog, permission: 'users.manage' },
+      { label: 'Roles', to: '/app/admin/roles', icon: KeyRound, permission: 'roles.manage' },
+      { label: 'Configuración', to: '/app/admin/configuracion', icon: Settings, permission: 'settings.manage' },
+      { label: 'Auditoría', to: '/app/admin/auditoria', icon: ScrollText, permission: 'audit.read' },
     ],
   },
 ]

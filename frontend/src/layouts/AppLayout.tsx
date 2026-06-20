@@ -1,18 +1,33 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
-import { Menu, Search, Sparkles, ArrowLeft } from 'lucide-react'
+import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
+import { Menu, Search, Sparkles, ArrowLeft, LogOut } from 'lucide-react'
 import Brand from '../components/Brand'
 import { appNav } from '../lib/nav'
+import { useAuth } from '../lib/auth-context'
 
 export default function AppLayout() {
   const [open, setOpen] = useState(false)
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { user, hasPermission, logout } = useAuth()
   useEffect(() => setOpen(false), [pathname])
 
   // Migaja: título de la página activa.
   const crumb =
     appNav.flatMap((g) => g.items).find((i) => (i.end ? pathname === i.to : pathname.startsWith(i.to)) && i.to !== '/app')?.label ??
     (pathname === '/app' ? 'Dashboard General' : 'Plataforma interna')
+
+  const visibleGroups = appNav
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.permission || hasPermission(item.permission)),
+    }))
+    .filter((group) => group.items.length > 0)
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -29,7 +44,7 @@ export default function AppLayout() {
           <Brand subtitle="PLATAFORMA INTERNA" to="/app" />
         </div>
         <nav className="flex-1 overflow-y-auto p-3 flex flex-col gap-1">
-          {appNav.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.title}>
               <div className="font-mono text-[10px] tracking-[0.12em] text-subtle px-2.5 pt-3 pb-1">
                 {group.title}
@@ -69,12 +84,19 @@ export default function AppLayout() {
               className="w-[30px] h-[30px] shrink-0 rounded-full text-white flex items-center justify-center font-bold text-xs font-mono"
               style={{ background: 'linear-gradient(135deg,var(--accent),#ff6b6b)' }}
             >
-              RC
+              {user?.initials ?? '—'}
             </span>
-            <span className="flex flex-col leading-tight overflow-hidden">
-              <span className="font-semibold text-ink text-[13px] whitespace-nowrap">Dra. R. Cárcamo</span>
-              <span className="text-muted text-[11px] whitespace-nowrap">Coordinadora Comité</span>
+            <span className="flex flex-col leading-tight overflow-hidden flex-1">
+              <span className="font-semibold text-ink text-[13px] whitespace-nowrap truncate">{user?.fullName ?? 'Invitado'}</span>
+              <span className="text-muted text-[11px] whitespace-nowrap truncate">{user?.role.name ?? ''}</span>
             </span>
+            <button
+              onClick={handleLogout}
+              aria-label="Cerrar sesión"
+              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md border border-line text-muted hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors"
+            >
+              <LogOut size={15} />
+            </button>
           </div>
         </div>
       </aside>
