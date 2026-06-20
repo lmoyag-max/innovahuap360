@@ -81,6 +81,14 @@ export class AuthService {
     };
   }
 
+  /** Perfil completo para /auth/me — misma forma que devuelven login/refresh
+   *  (id, initials, role anidado, etc.), nunca el payload crudo del JWT. */
+  async getProfile(userId: string) {
+    const user = await this.usersService.findByIdWithAuth(userId);
+    if (!user || !user.isActive) throw new UnauthorizedException('Usuario no disponible');
+    return this.safeUser(user);
+  }
+
   async login(email: string, password: string, meta: RequestMeta) {
     const user = await this.usersService.findByEmailWithAuth(email);
     const genericError = 'Credenciales inválidas';

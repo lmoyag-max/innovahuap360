@@ -56,7 +56,7 @@ export default function PublicLayout() {
             Postular idea
           </Link>
           <Link
-            to="/app"
+            to="/login"
             className="h-10 px-4 rounded-md text-white font-semibold text-[13.5px] inline-flex items-center gap-1.5 shadow-sm transition-colors"
             style={{ background: 'var(--accent)' }}
           >
@@ -111,7 +111,7 @@ export default function PublicLayout() {
                 Postular idea
               </Link>
               <Link
-                to="/app"
+                to="/login"
                 className="h-12 rounded-lg text-white font-semibold text-[15px] flex items-center justify-center gap-2"
                 style={{ background: 'var(--accent)' }}
               >

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Lock, Mail, AlertCircle } from 'lucide-react'
 import { useAuth, apiErrorMessage } from '../../lib/auth-context'
 
@@ -13,10 +13,15 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export default function Login() {
-  const { login } = useAuth()
+  const { user, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation() as { state?: { from?: { pathname?: string } } }
   const [serverError, setServerError] = useState<string | null>(null)
+
+  // Ya hay una sesión activa: no tiene sentido mostrar el formulario de nuevo.
+  if (user) {
+    return <Navigate to={location.state?.from?.pathname ?? '/app'} replace />
+  }
 
   const {
     register,

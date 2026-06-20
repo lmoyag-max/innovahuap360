@@ -24,6 +24,7 @@ const PERMISSIONS = [
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: PERMISSIONS,
+  super_admin: PERMISSIONS,
   coordinador: [
     'projects.read', 'projects.manage',
     'minutes.read', 'minutes.manage',
@@ -43,6 +44,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
 
 const ROLE_NAMES: Record<string, string> = {
   admin: 'Administrador',
+  super_admin: 'Super Administrador',
   coordinador: 'Coordinador del Comité',
   miembro_comite: 'Miembro del Comité',
   lector: 'Lector',
@@ -102,6 +104,36 @@ async function main() {
   const hasCommitteeMembers = (await prisma.committeeMember.count()) > 0;
   if (!hasCommitteeMembers) {
     await prisma.committeeMember.create({ data: { userId: existingAdmin.id, isActive: true } });
+  }
+
+  // Usuario super_admin de respaldo (acceso de emergencia / soporte), con
+  // contraseña temporal que obliga a cambiarla en el primer inicio de sesión.
+  const superAdminEmail = process.env.SUPER_ADMIN_EMAIL ?? 'admin@innovahuap360.local';
+  const existingSuperAdmin = await prisma.user.findUnique({ where: { email: superAdminEmail } });
+
+  if (!existingSuperAdmin) {
+    const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD ?? 'Cambiar123456!';
+    const superAdminRole = await prisma.role.findUniqueOrThrow({ where: { key: 'super_admin' } });
+
+    await prisma.user.create({
+      data: {
+        email: superAdminEmail,
+        passwordHash: await argon2.hash(superAdminPassword),
+        fullName: 'Super Administrador InnovaHUAP 360',
+        initials: 'SA',
+        roleId: superAdminRole.id,
+        mustChangePass: true,
+      },
+    });
+
+    // eslint-disable-next-line no-console
+    console.log('\n=== Usuario super_admin creado ===');
+    // eslint-disable-next-line no-console
+    console.log(`Email:    ${superAdminEmail}`);
+    // eslint-disable-next-line no-console
+    console.log(`Password: ${superAdminPassword}  (cámbiela al iniciar sesión)`);
+    // eslint-disable-next-line no-console
+    console.log('===================================\n');
   }
 }
 
