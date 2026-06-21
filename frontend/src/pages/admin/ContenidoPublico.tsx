@@ -6,12 +6,31 @@ import { z } from 'zod'
 import { Plus, Pencil, Trash2, Eye, EyeOff, Star, X } from 'lucide-react'
 import { Eyebrow, Badge } from '../../components/ui'
 import { api, apiErrorMessage } from '../../lib/api'
+import { useAuth } from '../../lib/auth-context'
 import QuienesSomosAdmin from './QuienesSomosAdmin'
+import PoliticaAdmin from './PoliticaAdmin'
+import PortafolioAdmin from './PortafolioAdmin'
+import ObservatorioAdmin from './ObservatorioAdmin'
+import ConocimientoAdmin from './ConocimientoAdmin'
+import EventosAdmin from './EventosAdmin'
 
 const SECTIONS = [
   'HOME', 'QUIENES_SOMOS', 'POLITICA', 'PORTAFOLIO', 'OBSERVATORIO',
   'CONOCIMIENTO', 'EVENTOS', 'NOTICIA', 'BANNER',
 ] as const
+
+// Orden exacto requerido: se refleja en estas pestañas, en publicNav
+// (frontend/src/lib/nav.ts) y en las rutas públicas correspondientes.
+const VIEWS = [
+  { key: 'quienes-somos', label: 'Quiénes Somos' },
+  { key: 'politica', label: 'Política' },
+  { key: 'portafolio', label: 'Portafolio' },
+  { key: 'observatorio', label: 'Observatorio' },
+  { key: 'conocimiento', label: 'Conocimiento' },
+  { key: 'eventos', label: 'Eventos' },
+  { key: 'general', label: 'Contenido genérico' },
+] as const
+type ViewKey = (typeof VIEWS)[number]['key']
 
 const schema = z.object({
   section: z.enum(SECTIONS),
@@ -31,45 +50,51 @@ interface ContentItem extends FormValues {
 }
 
 export default function ContenidoPublico() {
-  const [view, setView] = useState<'general' | 'quienes-somos'>('general')
-  return view === 'quienes-somos' ? (
+  const [view, setView] = useState<ViewKey>('quienes-somos')
+
+  if (view === 'general') return <ContenidoGenerico view={view} setView={setView} />
+
+  const Content = {
+    'quienes-somos': QuienesSomosAdmin,
+    politica: PoliticaAdmin,
+    portafolio: PortafolioAdmin,
+    observatorio: ObservatorioAdmin,
+    conocimiento: ConocimientoAdmin,
+    eventos: EventosAdmin,
+  }[view]
+
+  return (
     <div className="p-4 sm:p-6 animate-viewin">
       <ViewSwitcher view={view} setView={setView} />
-      <QuienesSomosAdmin />
+      <Content />
     </div>
-  ) : (
-    <ContenidoGenerico view={view} setView={setView} />
   )
 }
 
-function ViewSwitcher({ view, setView }: { view: 'general' | 'quienes-somos'; setView: (v: 'general' | 'quienes-somos') => void }) {
+function ViewSwitcher({ view, setView }: { view: ViewKey; setView: (v: ViewKey) => void }) {
   return (
-    <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
-      <div>
-        <Eyebrow>ADMINISTRACIÓN</Eyebrow>
-        <h1 className="mt-1.5 text-[22px] sm:text-[26px] text-ink tracking-tight font-extrabold">Contenido público</h1>
-      </div>
-      <div className="flex gap-2">
-        <button
-          onClick={() => setView('general')}
-          className="h-9 px-3.5 rounded-md text-[12.5px] font-semibold"
-          style={view === 'general' ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--surface-inset)', color: 'var(--text-body)' }}
-        >
-          Contenido genérico
-        </button>
-        <button
-          onClick={() => setView('quienes-somos')}
-          className="h-9 px-3.5 rounded-md text-[12.5px] font-semibold"
-          style={view === 'quienes-somos' ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--surface-inset)', color: 'var(--text-body)' }}
-        >
-          Quiénes Somos
-        </button>
+    <div className="mb-5">
+      <Eyebrow>ADMINISTRACIÓN</Eyebrow>
+      <h1 className="mt-1.5 mb-4 text-[22px] sm:text-[26px] text-ink tracking-tight font-extrabold">Contenido público</h1>
+      <div className="flex gap-2 overflow-x-auto pb-1 flex-wrap">
+        {VIEWS.map((v) => (
+          <button
+            key={v.key}
+            onClick={() => setView(v.key)}
+            className="h-9 px-3.5 rounded-md text-[12.5px] font-semibold whitespace-nowrap"
+            style={view === v.key ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--surface-inset)', color: 'var(--text-body)' }}
+          >
+            {v.label}
+          </button>
+        ))}
       </div>
     </div>
   )
 }
 
-function ContenidoGenerico({ view, setView }: { view: 'general' | 'quienes-somos'; setView: (v: 'general' | 'quienes-somos') => void }) {
+function ContenidoGenerico({ view, setView }: { view: ViewKey; setView: (v: ViewKey) => void }) {
+  const { hasPermission } = useAuth()
+  const canDelete = hasPermission('public_content.delete')
   const queryClient = useQueryClient()
   const [sectionFilter, setSectionFilter] = useState<string>('')
   const [editing, setEditing] = useState<ContentItem | null>(null)
@@ -249,9 +274,10 @@ function ContenidoGenerico({ view, setView }: { view: 'general' | 'quienes-somos
                         <Pencil size={14} />
                       </button>
                       <button
-                        title="Eliminar"
+                        title={canDelete ? 'Eliminar' : 'Solo administradores pueden eliminar'}
+                        disabled={!canDelete}
                         onClick={() => { if (confirm('¿Eliminar este contenido?')) deleteMutation.mutate(item.id) }}
-                        className="w-7 h-7 flex items-center justify-center rounded-md border border-line hover:border-[var(--accent)] text-body"
+                        className="w-7 h-7 flex items-center justify-center rounded-md border border-line hover:border-[var(--accent)] text-body disabled:opacity-30"
                       >
                         <Trash2 size={14} />
                       </button>

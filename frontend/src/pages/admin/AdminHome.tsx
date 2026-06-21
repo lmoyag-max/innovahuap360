@@ -4,7 +4,7 @@ import { Eyebrow } from '../../components/ui'
 import { useAuth } from '../../lib/auth-context'
 
 const CARDS = [
-  { to: '/app/admin/contenido-publico', icon: ShieldCheck, title: 'Contenido público', desc: 'Home, política, portafolio, observatorio, conocimiento, eventos, noticias y banners.', permission: 'content.manage' },
+  { to: '/app/admin/contenido-publico', icon: ShieldCheck, title: 'Contenido público', desc: 'Quiénes somos, política, portafolio, observatorio, conocimiento, eventos, noticias y banners.', permission: 'public_content.manage' },
   { to: '/app/admin/usuarios', icon: UserCog, title: 'Usuarios', desc: 'Crear cuentas, activar/desactivar y restablecer contraseñas.', permission: 'users.manage' },
   { to: '/app/admin/roles', icon: KeyRound, title: 'Roles y permisos', desc: 'Definir qué puede hacer cada rol del Comité.', permission: 'roles.manage' },
   { to: '/app/admin/configuracion', icon: Settings, title: 'Configuración', desc: 'Parámetros institucionales (KPIs ejecutivos, etc.).', permission: 'settings.manage' },

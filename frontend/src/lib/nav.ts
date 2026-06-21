@@ -58,7 +58,7 @@ export const appNav: NavGroup[] = [
   {
     title: 'Administración',
     items: [
-      { label: 'Contenido público', to: '/app/admin/contenido-publico', icon: ShieldCheck, permission: 'content.manage' },
+      { label: 'Contenido público', to: '/app/admin/contenido-publico', icon: ShieldCheck, permission: 'public_content.manage' },
       { label: 'Usuarios', to: '/app/admin/usuarios', icon: UserCog, permission: 'users.manage' },
       { label: 'Unidades y Servicios', to: '/app/admin/unidades', icon: Building2, permission: 'units.manage' },
       { label: 'Roles', to: '/app/admin/roles', icon: KeyRound, permission: 'roles.manage' },

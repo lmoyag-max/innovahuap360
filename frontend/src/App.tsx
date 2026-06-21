@@ -83,7 +83,7 @@ export default function App() {
           {/* Administración */}
           <Route path="admin">
             <Route index element={<AdminHome />} />
-            <Route element={<RequirePermission permission="content.manage" />}>
+            <Route element={<RequirePermission permission="public_content.manage" />}>
               <Route path="contenido-publico" element={<ContenidoPublico />} />
             </Route>
             <Route element={<RequirePermission permission="users.manage" />}>

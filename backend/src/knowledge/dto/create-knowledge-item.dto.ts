@@ -18,6 +18,10 @@ export class CreateKnowledgeItemDto {
   fileUrl?: string;
 
   @IsOptional()
+  @IsString()
+  linkUrl?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(0)
   sizeBytes?: number;

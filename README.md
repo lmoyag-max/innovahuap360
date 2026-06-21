@@ -117,16 +117,68 @@ público → pestaña "Quiénes Somos"** (`/app/admin/contenido-publico`). Extie
   10 MB máx., validada por contenido real del archivo, no solo la extensión).
 - **Documentos** (`about_documents`): sube PDF/DOC/DOCX, publica/despublica, reordena. Se sirven
   públicamente solo si están publicados, sin exponer la ruta física en disco.
-- Cada acción (crear/editar/eliminar/publicar/despublicar/reordenar/subir archivo) queda
-  auditada (`AuditLog`, acciones `about.*`) con usuario, fecha y entidad afectada.
-- Permisos: se reutiliza `content.manage` (el mismo que ya protegía el CMS genérico) en vez de
-  crear permisos nuevos — los roles que ya administran contenido público (admin, super_admin,
-  coordinador) heredan automáticamente la edición de "Quiénes Somos".
+- Cada acción (crear/editar/eliminar/publicar/despublicar/reordenar/subir archivo/**duplicar**)
+  queda auditada (`AuditLog`, acciones `about.*`) con usuario, fecha y entidad afectada.
+- Permisos: `public_content.manage` (crear/editar), `public_content.publish` (publicar/destacar)
+  y `public_content.delete` (eliminar — **solo admin y super_admin**; coordinador puede crear,
+  editar y publicar, pero no eliminar). Ver más abajo.
 - La página pública consume `GET /api/public/quienes-somos` (sin sesión); si la API no responde
   cae a los datos estáticos que tenía antes (`frontend/src/data/public.ts`) — si la API responde
   pero el contenido está despublicado, muestra un aviso en vez de inventar contenido.
 - Migración no destructiva: el seed migró los 6 integrantes y el encabezado que ya estaban
   hardcodeados en el portal hacia las tablas nuevas, así el sitio se ve igual apenas se despliega.
+
+## Contenido Público — Política, Portafolio, Observatorio, Conocimiento, Eventos
+
+Las 5 secciones públicas restantes se administran desde **Administración → Contenido público**
+(`/app/admin/contenido-publico`), con pestañas en este orden exacto: Quiénes Somos, Política,
+Portafolio, Observatorio, Conocimiento, Eventos, Contenido genérico (HOME/NOTICIA/BANNER). Cada
+una es un **CRUD real** (crear, editar, eliminar, publicar/ocultar, destacar, reordenar,
+duplicar) — no solo edición parcial o toggles de visibilidad.
+
+- **Política** (`/politica`): encabezado propio (título/bajada/texto principal/estado, fila única
+  `slug="politica"`) + items de `public_content` (`itemType`: PRINCIPIO/LINEAMIENTO/OBJETIVO/
+  DOCUMENTO) con documento adjunto opcional. CRUD completo vía los endpoints genéricos del CMS
+  (`POST/PATCH/DELETE /admin/public-content`, etc.); encabezado en
+  `GET/PUT /admin/public-content/politica`.
+- **Observatorio** (`/observatorio`) y **Eventos** (`/eventos`): mismo mecanismo de items de
+  `public_content` (sin encabezado propio), usando los campos `category`, `itemType`, `linkUrl`
+  y, para Eventos, `eventDate`/`eventLocation`/`registrationUrl`. La página pública consume el
+  `GET /public-content?section=OBSERVATORIO|EVENTOS` ya existente.
+- **Portafolio** (`/portafolio`): es una **publicación pública independiente**, separada del
+  seguimiento real del proyecto — **Portafolio Interno** (etapas, riesgo, factibilidad, tareas en
+  `/app/portafolio`, modelo `Project`) no se modifica ni se duplica su lógica. Cada publicación
+  (`public_content`, `section=PORTAFOLIO`) tiene imagen principal, descripción pública, beneficios
+  esperados (`expectedBenefits`) y puede **opcionalmente** vincularse a un proyecto interno real
+  solo como referencia (`relatedProjectId`, `onDelete: SetNull`) — eliminar la publicación pública
+  nunca borra ni modifica el proyecto. CRUD completo vía los mismos endpoints genéricos del CMS;
+  `GET /admin/public-content/portafolio/proyectos` alimenta el selector de "proyecto relacionado".
+  La página pública consume `GET /public-content?section=PORTAFOLIO`.
+- **Conocimiento** (`/conocimiento`): CRUD completo (documentos, manuales, guías, casos de éxito,
+  artículos, enlaces) reutilizando directamente los endpoints reales de `/knowledge` — el mismo
+  backend que ya usaba el módulo interno `/app/conocimiento` (`KnowledgeItem`, permiso
+  `knowledge.manage`); no se duplicó el modelo. La pestaña "Conocimiento" de Contenido Público
+  agrega create/editar/eliminar/publicar ahí mismo (antes solo permitía alternar visibilidad).
+  Se agregó `linkUrl` a `KnowledgeItem` para ítems de tipo "Enlace" sin archivo adjunto, y un
+  endpoint público seguro `GET /public/knowledge/:id/file` (gateado por `isPublic` del propio
+  ítem, sin requerir sesión) — antes la descarga pública dependía de `/uploads/:id/download`, que
+  exige sesión y por lo tanto nunca funcionó para visitantes anónimos.
+- **Documentos descargables**: cualquier item de `public_content` admite un archivo adjunto
+  (PDF/DOC/DOCX, mismo `UploadsService` validado por contenido real del archivo) vía
+  `POST/DELETE /admin/public-content/:id/document`; se sirve públicamente solo si el item está
+  publicado (`GET /public/content/:id/document`), sin exponer la ruta física en disco.
+- **Permisos**: `public_content.manage` (crear/editar/duplicar/reordenar/subir archivo),
+  `public_content.publish` (publicar/despublicar/destacar) y `public_content.delete` (eliminar).
+  Reemplazan al antiguo `content.manage` (eliminado del seed). Asignación: admin y super_admin
+  tienen los tres; coordinador tiene `manage` y `publish` pero **no** `delete` — solo
+  administradores pueden eliminar contenido público, como en el resto del sistema.
+- Auditoría: acciones `politica.*`, `public_content.document_*`, además de las ya existentes
+  (`about.*`, `public_content.create/update/delete/published/featured/reorder`). Conocimiento usa
+  la auditoría propia del módulo `/knowledge`.
+- Migración no destructiva: el seed migró los documentos de política, el destacado y artículos del
+  observatorio, la agenda de eventos, los recursos de conocimiento (a `knowledge_items`) y los
+  proyectos de ejemplo del portafolio (a `projects`, solo si la tabla no tenía proyectos públicos
+  reales) — el sitio se ve igual apenas se despliega esta migración.
 
 ## Correo (SMTP)
 

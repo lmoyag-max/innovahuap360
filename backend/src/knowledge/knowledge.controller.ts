@@ -1,7 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { Public } from '../common/decorators/public.decorator';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { UploadsService } from '../uploads/uploads.service';
 import { CreateKnowledgeItemDto } from './dto/create-knowledge-item.dto';
 import { UpdateKnowledgeItemDto } from './dto/update-knowledge-item.dto';
 import { KnowledgeService } from './knowledge.service';
@@ -9,7 +11,10 @@ import { KnowledgeService } from './knowledge.service';
 @ApiTags('knowledge')
 @Controller()
 export class KnowledgeController {
-  constructor(private readonly service: KnowledgeService) {}
+  constructor(
+    private readonly service: KnowledgeService,
+    private readonly uploadsService: UploadsService,
+  ) {}
 
   @Public()
   @Get('public/knowledge')
@@ -21,6 +26,13 @@ export class KnowledgeController {
   @Post('public/knowledge/:id/download')
   registerDownload(@Param('id') id: string) {
     return this.service.registerDownload(id);
+  }
+
+  @Public()
+  @Get('public/knowledge/:id/file')
+  async getPublicFile(@Param('id') id: string, @Res() res: Response) {
+    const upload = await this.service.getPublicFile(id);
+    res.download(this.uploadsService.getFilePath(upload), upload.originalName);
   }
 
   @Get('knowledge')

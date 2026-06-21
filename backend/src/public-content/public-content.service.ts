@@ -12,6 +12,7 @@ import { CreateAboutAxisDto, UpdateAboutAxisDto } from './dto/about-axis.dto';
 import { CreateAboutObjectiveDto, UpdateAboutObjectiveDto } from './dto/about-objective.dto';
 import { CreateAboutValueDto, UpdateAboutValueDto } from './dto/about-value.dto';
 import { CreateAboutDocumentDto, UpdateAboutDocumentDto } from './dto/about-document.dto';
+import { UpdatePoliticaContentDto } from './dto/politica-content.dto';
 
 function sanitizeBody(body?: string | null): string | undefined {
   if (body === undefined) return undefined;
@@ -30,6 +31,7 @@ export interface ContentActor {
 }
 
 const ABOUT_SLUG = 'quienes-somos';
+const POLITICA_SLUG = 'politica';
 
 @Injectable()
 export class PublicContentService {
@@ -72,6 +74,8 @@ export class PublicContentService {
       data: {
         ...dto,
         body: sanitizeBody(dto.body),
+        expectedBenefits: sanitizeBody(dto.expectedBenefits),
+        relatedProjectId: dto.relatedProjectId || null,
         publishedAt: dto.isPublished ? new Date() : null,
       },
     });
@@ -87,6 +91,8 @@ export class PublicContentService {
       data: {
         ...dto,
         body: sanitizeBody(dto.body),
+        expectedBenefits: sanitizeBody(dto.expectedBenefits),
+        relatedProjectId: dto.relatedProjectId !== undefined ? dto.relatedProjectId || null : undefined,
         publishedAt: becomingPublished ? new Date() : undefined,
       },
     });
@@ -451,5 +457,135 @@ export class PublicContentService {
     const document = await this.prisma.aboutDocument.findFirst({ where: { id, isPublished: true }, include: { fileUpload: true } });
     if (!document) throw new NotFoundException('Documento no encontrado');
     return document.fileUpload;
+  }
+
+  // ===================== Política =====================
+  // Mismo patrón que Quiénes Somos: encabezado en una fila única de
+  // PublicContent (section=POLITICA, slug fijo); los principios/
+  // lineamientos/objetivos/documentos son simplemente otras filas
+  // PublicContent de la misma sección (itemType las distingue), creadas
+  // con los endpoints genéricos de items que ya existían.
+
+  async getPoliticaContent() {
+    const existing = await this.prisma.publicContent.findUnique({ where: { slug: POLITICA_SLUG } });
+    if (existing) return existing;
+    return this.prisma.publicContent.create({
+      data: { section: ContentSection.POLITICA, slug: POLITICA_SLUG, title: 'Política de Innovación', isPublished: false },
+    });
+  }
+
+  async updatePoliticaContent(dto: UpdatePoliticaContentDto, actor: ContentActor) {
+    const current = await this.getPoliticaContent();
+    const becomingPublished = dto.isPublished === true && !current.isPublished;
+    const becomingUnpublished = dto.isPublished === false && current.isPublished;
+
+    const updated = await this.prisma.publicContent.update({
+      where: { id: current.id },
+      data: {
+        title: dto.title,
+        excerpt: dto.excerpt,
+        body: sanitizeBody(dto.body),
+        imageUrl: dto.imageUrl,
+        isPublished: dto.isPublished,
+        publishedAt: becomingPublished ? new Date() : undefined,
+      },
+    });
+
+    await this.audit(
+      actor,
+      becomingPublished ? 'politica.content.publish' : becomingUnpublished ? 'politica.content.unpublish' : 'politica.content.update',
+      'public_content',
+      updated.id,
+    );
+    return updated;
+  }
+
+  async getPublicPolitica() {
+    const [content, items] = await Promise.all([
+      this.prisma.publicContent.findUnique({ where: { slug: POLITICA_SLUG } }),
+      this.prisma.publicContent.findMany({
+        where: { section: ContentSection.POLITICA, isPublished: true, slug: { not: POLITICA_SLUG } },
+        orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }],
+      }),
+    ]);
+
+    if (!content || !content.isPublished) {
+      return { published: false, content: null, items: [] };
+    }
+
+    return {
+      published: true,
+      content: { title: content.title, excerpt: content.excerpt, body: content.body, imageUrl: content.imageUrl },
+      items: items.map((i) => this.toPublicItem(i)),
+    };
+  }
+
+  // ---- Documento adjunto genérico de un item del CMS (Política,
+  // Observatorio, Eventos) — mismo mecanismo seguro que AboutDocument:
+  // sube vía UploadsService (valida magic bytes), se sirve públicamente
+  // solo si el item está publicado, nunca expone la ruta física. ----
+
+  async attachContentDocument(id: string, file: Express.Multer.File, actor: ContentActor) {
+    if (!file) throw new BadRequestException('No se recibió ningún archivo');
+    const current = await this.findOneAdmin(id);
+    const upload = await this.uploadsService.register(file, actor.userId);
+    const updated = await this.prisma.publicContent.update({ where: { id }, data: { documentUploadId: upload.id } });
+    if (current.documentUploadId) await this.uploadsService.deleteFile(current.documentUploadId);
+    await this.audit(actor, 'public_content.document_update', 'public_content', id, { title: current.title });
+    return updated;
+  }
+
+  async removeContentDocument(id: string, actor: ContentActor) {
+    const current = await this.findOneAdmin(id);
+    if (!current.documentUploadId) return current;
+    const updated = await this.prisma.publicContent.update({ where: { id }, data: { documentUploadId: null } });
+    await this.uploadsService.deleteFile(current.documentUploadId);
+    await this.audit(actor, 'public_content.document_remove', 'public_content', id, { title: current.title });
+    return updated;
+  }
+
+  async getPublicContentDocumentFile(id: string) {
+    const item = await this.prisma.publicContent.findFirst({ where: { id, isPublished: true }, include: { documentUpload: true } });
+    if (!item?.documentUpload) throw new NotFoundException('Documento no encontrado');
+    return item.documentUpload;
+  }
+
+  private toPublicItem(item: {
+    id: string; title: string; slug: string; excerpt: string | null; body: string | null; imageUrl: string | null;
+    itemType: string | null; category: string | null; tags: string[]; linkUrl: string | null;
+    eventDate: Date | null; eventLocation: string | null; registrationUrl: string | null;
+    isFeatured: boolean; publishedAt: Date | null; documentUploadId: string | null;
+  }) {
+    return {
+      id: item.id,
+      title: item.title,
+      slug: item.slug,
+      excerpt: item.excerpt,
+      body: item.body,
+      imageUrl: item.imageUrl,
+      itemType: item.itemType,
+      category: item.category,
+      tags: item.tags,
+      linkUrl: item.linkUrl,
+      eventDate: item.eventDate,
+      eventLocation: item.eventLocation,
+      registrationUrl: item.registrationUrl,
+      isFeatured: item.isFeatured,
+      publishedAt: item.publishedAt,
+      documentUrl: item.documentUploadId ? `/public/content/${item.id}/document` : null,
+    };
+  }
+
+  // ===================== Portafolio — proyectos internos para vincular =====================
+  // Portafolio Público administra publicaciones propias (PublicContent,
+  // section=PORTAFOLIO) vía los métodos genéricos de arriba — no se toca
+  // Project en absoluto. Este método solo alimenta el selector opcional
+  // "proyecto interno relacionado" del formulario de creación/edición.
+
+  listPortfolioVisibility() {
+    return this.prisma.project.findMany({
+      select: { id: true, name: true, category: true, stage: true },
+      orderBy: { name: 'asc' },
+    });
   }
 }

@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { CreateKnowledgeItemDto } from './dto/create-knowledge-item.dto';
 import { UpdateKnowledgeItemDto } from './dto/update-knowledge-item.dto';
 
 @Injectable()
 export class KnowledgeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploadsService: UploadsService,
+  ) {}
 
   findAll(folder?: string) {
     return this.prisma.knowledgeItem.findMany({
@@ -41,5 +45,15 @@ export class KnowledgeService {
 
   findPublic() {
     return this.prisma.knowledgeItem.findMany({ where: { isPublic: true }, orderBy: { createdAt: 'desc' } });
+  }
+
+  // `fileUrl` no es una URL real: guarda el id de un Upload (ver
+  // ConocimientoInterno.tsx). Para servirlo públicamente sin requerir
+  // sesión, se resuelve aquí gateado por `isPublic` del propio item —
+  // igual patrón que los documentos de Quiénes Somos / Política.
+  async getPublicFile(id: string) {
+    const item = await this.prisma.knowledgeItem.findFirst({ where: { id, isPublic: true } });
+    if (!item?.fileUrl) throw new NotFoundException('Archivo no encontrado');
+    return this.uploadsService.findOne(item.fileUrl);
   }
 }

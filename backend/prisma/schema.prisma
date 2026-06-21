@@ -125,6 +125,27 @@ model PublicContent {
   mission       String?
   vision        String?
   purpose       String?
+  // Campos adicionales para los "items" administrables de Política,
+  // Observatorio y Eventos (cada item es una fila PublicContent con la
+  // section correspondiente; itemType distingue el subtipo dentro de la
+  // sección, ej. DOCUMENTO/PRINCIPIO/INDICADOR/EVENTO). Quedan null para
+  // HOME/NOTICIA/BANNER y para la fila singular de cada encabezado.
+  itemType        String?   @map("item_type")
+  category        String?
+  tags            String[]  @default([])
+  linkUrl         String?   @map("link_url")
+  eventDate       DateTime? @map("event_date")
+  eventLocation   String?   @map("event_location")
+  registrationUrl String?   @map("registration_url")
+  documentUploadId String?  @unique @map("document_upload_id")
+  documentUpload   Upload?  @relation(fields: [documentUploadId], references: [id], onDelete: SetNull)
+  // Portafolio público (Contenido Público → Portafolio): publicación
+  // independiente del seguimiento interno del proyecto (Project). Puede
+  // referenciar opcionalmente un proyecto real solo para trazabilidad —
+  // eliminar esta fila nunca borra ni modifica el Project relacionado.
+  expectedBenefits String? @map("expected_benefits")
+  relatedProjectId String? @map("related_project_id")
+  relatedProject   Project? @relation(fields: [relatedProjectId], references: [id], onDelete: SetNull)
   imageUrl    String?        @map("image_url")
   isPublished Boolean        @default(false) @map("is_published")
   isFeatured  Boolean        @default(false) @map("is_featured")
@@ -247,6 +268,13 @@ model Project {
   kpiSummary  String?      @map("kpi_summary")
   dueDate     DateTime?    @map("due_date")
   isPublic    Boolean      @default(false) @map("is_public")
+  // Curados solo para la vitrina pública (/portafolio vía Contenido Público
+  // → Portafolio); no afectan la máquina de etapas ni la gestión interna.
+  imageUrl    String?      @map("image_url")
+  isFeatured  Boolean      @default(false) @map("is_featured")
+  sortOrder   Int          @default(0) @map("sort_order")
+  startDate   DateTime?    @map("start_date")
+  progressPct Int?         @map("progress_pct")
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
@@ -255,6 +283,7 @@ model Project {
   minutesItems MinuteProject[]
   ideas       Idea[]
   stageHistory ProjectStageHistory[]
+  publicEntries PublicContent[]
 
   @@map("projects")
 }
@@ -486,6 +515,11 @@ enum KnowledgeType {
   LECCION
   GUIA
   PUBLICACION
+  DOCUMENTO
+  MANUAL
+  CASO_EXITO
+  ARTICULO
+  ENLACE
 }
 
 model KnowledgeItem {
@@ -494,6 +528,7 @@ model KnowledgeItem {
   type        KnowledgeType
   folder      String?
   fileUrl     String?       @map("file_url")
+  linkUrl     String?       @map("link_url")
   sizeBytes   Int?          @map("size_bytes")
   authorName  String?       @map("author_name")
   downloads   Int           @default(0)
@@ -541,6 +576,7 @@ model Upload {
   ideaFicha    Idea?
   aboutMemberPhoto  AboutMember?
   aboutDocumentFile AboutDocument?
+  publicContentDocument PublicContent?
 
   @@map("uploads")
 }

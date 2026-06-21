@@ -3,9 +3,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, ExternalLink, Image as ImageIcon, FileText, Upload, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, ExternalLink, Image as ImageIcon, FileText, Upload, X, Copy } from 'lucide-react'
 import { Badge } from '../../components/ui'
 import { api, apiErrorMessage } from '../../lib/api'
+import { useAuth } from '../../lib/auth-context'
 
 const TABS = [
   { key: 'content', label: 'Encabezado y descripción' },
@@ -190,6 +191,8 @@ const memberSchema = z.object({
 type MemberValues = z.infer<typeof memberSchema>
 
 function MembersEditor() {
+  const { hasPermission } = useAuth()
+  const canDelete = hasPermission('public_content.delete')
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<AboutMember | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -232,6 +235,10 @@ function MembersEditor() {
   })
   const reorderMutation = useMutation({
     mutationFn: (items: { id: string; sortOrder: number }[]) => api.put('/admin/public-content/quienes-somos/members/reorder', { items }),
+    onSuccess: invalidate,
+  })
+  const duplicateMutation = useMutation({
+    mutationFn: (m: AboutMember) => api.post('/admin/public-content/quienes-somos/members', { name: `${m.name} (copia)`, role: m.role, unit: m.unit ?? undefined, committeeRole: m.committeeRole ?? undefined, email: undefined }),
     onSuccess: invalidate,
   })
 
@@ -339,7 +346,7 @@ function MembersEditor() {
                 <th className="px-4 py-3 font-semibold">Nombre</th>
                 <th className="px-4 py-3 font-semibold">Cargo</th>
                 <th className="px-4 py-3 font-semibold">Estado</th>
-                <th className="px-4 py-3 font-semibold w-[200px]">Acciones</th>
+                <th className="px-4 py-3 font-semibold w-[230px]">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -358,7 +365,15 @@ function MembersEditor() {
                         {m.isActive ? <EyeOff size={13} /> : <Eye size={13} />}
                       </button>
                       <button title="Editar" onClick={() => openEdit(m)} className="w-7 h-7 flex items-center justify-center rounded-md border border-line"><Pencil size={13} /></button>
-                      <button title="Eliminar" onClick={() => { if (confirm('¿Eliminar este integrante?')) deleteMutation.mutate(m.id) }} className="w-7 h-7 flex items-center justify-center rounded-md border border-line"><Trash2 size={13} /></button>
+                      <button title="Duplicar" onClick={() => duplicateMutation.mutate(m)} className="w-7 h-7 flex items-center justify-center rounded-md border border-line"><Copy size={13} /></button>
+                      <button
+                        title={canDelete ? 'Eliminar' : 'Solo administradores pueden eliminar'}
+                        disabled={!canDelete}
+                        onClick={() => { if (confirm('¿Eliminar este integrante?')) deleteMutation.mutate(m.id) }}
+                        className="w-7 h-7 flex items-center justify-center rounded-md border border-line disabled:opacity-30"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -408,6 +423,8 @@ function SimpleListEditor({
   defaultValues: Record<string, unknown>
   fields: { name: string; label: string; type: 'input' | 'textarea' }[]
 }) {
+  const { hasPermission } = useAuth()
+  const canDelete = hasPermission('public_content.delete')
   const { data, isLoading, createMutation, updateMutation, deleteMutation, toggleActiveMutation, move } = useSimpleListEditor(basePath, queryKey, labelField)
   const [editing, setEditing] = useState<SimpleItem | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -421,6 +438,12 @@ function SimpleListEditor({
     if (editing) updateMutation.mutate({ id: editing.id, values })
     else createMutation.mutate(values)
     closeForm()
+  }
+  const duplicate = (item: SimpleItem) => {
+    const { id, sortOrder, isActive, ...rest } = item
+    void id; void sortOrder; void isActive
+    const label = labelField === 'name' ? 'name' : 'title'
+    createMutation.mutate({ ...rest, [label]: `${item[label]} (copia)` })
   }
 
   const saving = createMutation.isPending || updateMutation.isPending
@@ -472,7 +495,7 @@ function SimpleListEditor({
               <tr className="border-b border-line text-left text-muted text-[11.5px]">
                 <th className="px-4 py-3 font-semibold">{labelText}</th>
                 <th className="px-4 py-3 font-semibold">Estado</th>
-                <th className="px-4 py-3 font-semibold w-[180px]">Acciones</th>
+                <th className="px-4 py-3 font-semibold w-[210px]">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -490,7 +513,15 @@ function SimpleListEditor({
                         {item.isActive ? <EyeOff size={13} /> : <Eye size={13} />}
                       </button>
                       <button title="Editar" onClick={() => openEdit(item)} className="w-7 h-7 flex items-center justify-center rounded-md border border-line"><Pencil size={13} /></button>
-                      <button title="Eliminar" onClick={() => { if (confirm('¿Eliminar este elemento?')) deleteMutation.mutate(item.id) }} className="w-7 h-7 flex items-center justify-center rounded-md border border-line"><Trash2 size={13} /></button>
+                      <button title="Duplicar" onClick={() => duplicate(item)} className="w-7 h-7 flex items-center justify-center rounded-md border border-line"><Copy size={13} /></button>
+                      <button
+                        title={canDelete ? 'Eliminar' : 'Solo administradores pueden eliminar'}
+                        disabled={!canDelete}
+                        onClick={() => { if (confirm('¿Eliminar este elemento?')) deleteMutation.mutate(item.id) }}
+                        className="w-7 h-7 flex items-center justify-center rounded-md border border-line disabled:opacity-30"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -560,7 +591,10 @@ interface AboutDocument {
 }
 
 function DocumentsEditor() {
+  const { hasPermission } = useAuth()
+  const canDelete = hasPermission('public_content.delete')
   const queryClient = useQueryClient()
+  const [editing, setEditing] = useState<AboutDocument | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -572,6 +606,8 @@ function DocumentsEditor() {
   })
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['about-documents'] })
 
+  const closeForm = () => { setShowForm(false); setEditing(null); setName(''); setDescription(''); setFile(null) }
+
   const createMutation = useMutation({
     mutationFn: () => {
       const form = new FormData()
@@ -580,7 +616,11 @@ function DocumentsEditor() {
       if (file) form.append('file', file)
       return api.post('/admin/public-content/quienes-somos/documents', form)
     },
-    onSuccess: () => { invalidate(); setShowForm(false); setName(''); setDescription(''); setFile(null) },
+    onSuccess: () => { invalidate(); closeForm() },
+  })
+  const updateMutation = useMutation({
+    mutationFn: (id: string) => api.patch(`/admin/public-content/quienes-somos/documents/${id}`, { name, description }),
+    onSuccess: () => { invalidate(); closeForm() },
   })
   const deleteMutation = useMutation({ mutationFn: (id: string) => api.delete(`/admin/public-content/quienes-somos/documents/${id}`), onSuccess: invalidate })
   const togglePublishedMutation = useMutation({
@@ -598,10 +638,15 @@ function DocumentsEditor() {
     reorderMutation.mutate(items.map((it, i) => ({ id: it.id, sortOrder: i })))
   }
 
+  const openCreate = () => { setEditing(null); setName(''); setDescription(''); setFile(null); setShowForm(true) }
+  const openEdit = (d: AboutDocument) => { setEditing(d); setName(d.name); setDescription(d.description ?? ''); setFile(null); setShowForm(true) }
+  const saving = createMutation.isPending || updateMutation.isPending
+  const saveError = createMutation.error || updateMutation.error
+
   return (
     <div>
       <div className="flex justify-end mb-3">
-        <button onClick={() => setShowForm((v) => !v)} className="h-9 px-3.5 rounded-md text-white font-semibold text-[12.5px] inline-flex items-center gap-1.5" style={{ background: 'var(--accent)' }}>
+        <button onClick={openCreate} className="h-9 px-3.5 rounded-md text-white font-semibold text-[12.5px] inline-flex items-center gap-1.5" style={{ background: 'var(--accent)' }}>
           <Plus size={15} /> Nuevo documento
         </button>
       </div>
@@ -609,11 +654,11 @@ function DocumentsEditor() {
       {showForm && (
         <div className="bg-card border border-line rounded-card p-5 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[14px] font-bold text-ink">Nuevo documento</h3>
-            <button onClick={() => setShowForm(false)} className="text-muted hover:text-ink"><X size={18} /></button>
+            <h3 className="text-[14px] font-bold text-ink">{editing ? 'Editar documento' : 'Nuevo documento'}</h3>
+            <button onClick={closeForm} className="text-muted hover:text-ink"><X size={18} /></button>
           </div>
-          {createMutation.error && <p className="text-[12.5px] mb-3" style={{ color: 'var(--accent)' }}>{apiErrorMessage(createMutation.error)}</p>}
-          <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate() }} className="grid grid-cols-1 gap-3.5">
+          {saveError && <p className="text-[12.5px] mb-3" style={{ color: 'var(--accent)' }}>{apiErrorMessage(saveError)}</p>}
+          <form onSubmit={(e) => { e.preventDefault(); editing ? updateMutation.mutate(editing.id) : createMutation.mutate() }} className="grid grid-cols-1 gap-3.5">
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-semibold text-body">Nombre</span>
               <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
@@ -622,15 +667,17 @@ function DocumentsEditor() {
               <span className="text-[12px] font-semibold text-body">Descripción (opcional)</span>
               <input value={description} onChange={(e) => setDescription(e.target.value)} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
             </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-body">Archivo (PDF, DOC o DOCX)</span>
-              <input type="file" required accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
-            </label>
+            {!editing && (
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12px] font-semibold text-body">Archivo (PDF, DOC o DOCX)</span>
+                <input type="file" required accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
+              </label>
+            )}
             <div className="flex gap-2.5 mt-1">
-              <button type="submit" disabled={createMutation.isPending} className="h-10 px-4 rounded-md text-white font-semibold text-[13px] inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'var(--accent)' }}>
-                <Upload size={14} /> {createMutation.isPending ? 'Subiendo…' : 'Subir documento'}
+              <button type="submit" disabled={saving} className="h-10 px-4 rounded-md text-white font-semibold text-[13px] inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'var(--accent)' }}>
+                <Upload size={14} /> {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Subir documento'}
               </button>
-              <button type="button" onClick={() => setShowForm(false)} className="h-10 px-4 rounded-md border border-line text-body font-semibold text-[13px]">Cancelar</button>
+              <button type="button" onClick={closeForm} className="h-10 px-4 rounded-md border border-line text-body font-semibold text-[13px]">Cancelar</button>
             </div>
           </form>
         </div>
@@ -667,7 +714,15 @@ function DocumentsEditor() {
                       <button title={d.isPublished ? 'Despublicar' : 'Publicar'} onClick={() => togglePublishedMutation.mutate({ id: d.id, isPublished: !d.isPublished })} className="w-7 h-7 flex items-center justify-center rounded-md border border-line">
                         {d.isPublished ? <EyeOff size={13} /> : <Eye size={13} />}
                       </button>
-                      <button title="Eliminar" onClick={() => { if (confirm('¿Eliminar este documento?')) deleteMutation.mutate(d.id) }} className="w-7 h-7 flex items-center justify-center rounded-md border border-line"><Trash2 size={13} /></button>
+                      <button title="Editar" onClick={() => openEdit(d)} className="w-7 h-7 flex items-center justify-center rounded-md border border-line"><Pencil size={13} /></button>
+                      <button
+                        title={canDelete ? 'Eliminar' : 'Solo administradores pueden eliminar'}
+                        disabled={!canDelete}
+                        onClick={() => { if (confirm('¿Eliminar este documento?')) deleteMutation.mutate(d.id) }}
+                        className="w-7 h-7 flex items-center justify-center rounded-md border border-line disabled:opacity-30"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </td>
                 </tr>
