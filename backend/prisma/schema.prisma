@@ -118,6 +118,13 @@ model PublicContent {
   slug        String         @unique
   excerpt     String?
   body        String?
+  // Campos adicionales usados solo por la página "Quiénes Somos"
+  // (section = QUIENES_SOMOS, slug = "quienes-somos", fila única).
+  // Quedan null para el resto de las secciones del CMS genérico.
+  secondaryBody String?      @map("secondary_body")
+  mission       String?
+  vision        String?
+  purpose       String?
   imageUrl    String?        @map("image_url")
   isPublished Boolean        @default(false) @map("is_published")
   isFeatured  Boolean        @default(false) @map("is_featured")
@@ -128,6 +135,85 @@ model PublicContent {
 
   @@index([section, isPublished, sortOrder])
   @@map("public_content")
+}
+
+// ===================== "Quiénes Somos" — listas administrables =====================
+// No se reutiliza `CommitteeMember`: esa tabla solo marca qué usuarios del
+// sistema reciben notificaciones del Banco de Ideas. El roster público de
+// "Quiénes Somos" es contenido editorial (puede incluir personas sin cuenta
+// en el sistema), administrado desde Contenido Público.
+
+model AboutMember {
+  id            String   @id @default(uuid())
+  name          String
+  role          String                         // Cargo
+  unit          String?                        // Servicio/unidad
+  committeeRole String?  @map("committee_role") // Rol dentro del comité (ej. Coordinador/a)
+  email         String?
+  photoUploadId String?  @unique @map("photo_upload_id")
+  photoUpload   Upload?  @relation(fields: [photoUploadId], references: [id], onDelete: SetNull)
+  sortOrder     Int      @default(0) @map("sort_order")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@map("about_members")
+}
+
+model AboutAxis {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  icon        String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@map("about_axes")
+}
+
+model AboutObjective {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@map("about_objectives")
+}
+
+model AboutValue {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@map("about_values")
+}
+
+model AboutDocument {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  fileUploadId String   @unique @map("file_upload_id")
+  fileUpload   Upload   @relation(fields: [fileUploadId], references: [id], onDelete: Cascade)
+  isPublished  Boolean  @default(false) @map("is_published")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([isPublished, sortOrder])
+  @@map("about_documents")
 }
 
 // ===================== Portafolio de proyectos =====================
@@ -453,6 +539,8 @@ model Upload {
   createdAt    DateTime @default(now()) @map("created_at")
 
   ideaFicha    Idea?
+  aboutMemberPhoto  AboutMember?
+  aboutDocumentFile AboutDocument?
 
   @@map("uploads")
 }

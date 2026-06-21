@@ -103,6 +103,31 @@ npm run dev                   # http://localhost:5173
 - [`docs/CLAUDE_MASTER_PROMPT_INNOVAHUAP360.md`](docs/CLAUDE_MASTER_PROMPT_INNOVAHUAP360.md) — Especificación
   funcional original del proyecto.
 
+## Contenido Público — "Quiénes Somos"
+
+`/quienes-somos` (portal público) es 100% administrable desde **Administración → Contenido
+público → pestaña "Quiénes Somos"** (`/app/admin/contenido-publico`). Extiende el módulo
+`public-content` ya existente (no se creó un módulo paralelo):
+
+- **Encabezado y descripción**: título, bajada, imagen, texto principal/secundario, misión,
+  visión, propósito — reutiliza la tabla `public_content` (fila única, `slug="quienes-somos"`).
+- **Integrantes, Ejes, Objetivos, Valores**: listas propias (`about_members`, `about_axes`,
+  `about_objectives`, `about_values`) con alta/edición/eliminación, activar/desactivar y
+  reordenamiento (flechas arriba/abajo). Los integrantes admiten foto opcional (PNG/JPG/WEBP,
+  10 MB máx., validada por contenido real del archivo, no solo la extensión).
+- **Documentos** (`about_documents`): sube PDF/DOC/DOCX, publica/despublica, reordena. Se sirven
+  públicamente solo si están publicados, sin exponer la ruta física en disco.
+- Cada acción (crear/editar/eliminar/publicar/despublicar/reordenar/subir archivo) queda
+  auditada (`AuditLog`, acciones `about.*`) con usuario, fecha y entidad afectada.
+- Permisos: se reutiliza `content.manage` (el mismo que ya protegía el CMS genérico) en vez de
+  crear permisos nuevos — los roles que ya administran contenido público (admin, super_admin,
+  coordinador) heredan automáticamente la edición de "Quiénes Somos".
+- La página pública consume `GET /api/public/quienes-somos` (sin sesión); si la API no responde
+  cae a los datos estáticos que tenía antes (`frontend/src/data/public.ts`) — si la API responde
+  pero el contenido está despublicado, muestra un aviso en vez de inventar contenido.
+- Migración no destructiva: el seed migró los 6 integrantes y el encabezado que ya estaban
+  hardcodeados en el portal hacia las tablas nuevas, así el sitio se ve igual apenas se despliega.
+
 ## Correo (SMTP)
 
 Módulo centralizado en `backend/src/mail/` (`MailModule` → `MailService` + `MailController`), usado por

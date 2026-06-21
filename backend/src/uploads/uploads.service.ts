@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { createReadStream, promises as fs } from 'node:fs';
+import { resolve } from 'node:path';
 import { PrismaService } from '../prisma/prisma.service';
+
+const UPLOADS_DIR = process.env.UPLOADS_DIR ?? './uploads';
 
 /**
  * Firmas binarias (magic bytes) de los tipos permitidos. El mimetype que
@@ -62,5 +65,17 @@ export class UploadsService {
     const upload = await this.prisma.upload.findUnique({ where: { id } });
     if (!upload) throw new NotFoundException('Archivo no encontrado');
     return upload;
+  }
+
+  /** Resuelve la ruta física en disco sin exponerla directamente a los controllers. */
+  getFilePath(upload: { storedName: string }): string {
+    return resolve(UPLOADS_DIR, upload.storedName);
+  }
+
+  async deleteFile(id: string): Promise<void> {
+    const upload = await this.prisma.upload.findUnique({ where: { id } });
+    if (!upload) return;
+    await fs.unlink(this.getFilePath(upload)).catch(() => undefined);
+    await this.prisma.upload.delete({ where: { id } }).catch(() => undefined);
   }
 }

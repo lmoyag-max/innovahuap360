@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { Plus, Pencil, Trash2, Eye, EyeOff, Star, X } from 'lucide-react'
 import { Eyebrow, Badge } from '../../components/ui'
 import { api, apiErrorMessage } from '../../lib/api'
+import QuienesSomosAdmin from './QuienesSomosAdmin'
 
 const SECTIONS = [
   'HOME', 'QUIENES_SOMOS', 'POLITICA', 'PORTAFOLIO', 'OBSERVATORIO',
@@ -30,6 +31,45 @@ interface ContentItem extends FormValues {
 }
 
 export default function ContenidoPublico() {
+  const [view, setView] = useState<'general' | 'quienes-somos'>('general')
+  return view === 'quienes-somos' ? (
+    <div className="p-4 sm:p-6 animate-viewin">
+      <ViewSwitcher view={view} setView={setView} />
+      <QuienesSomosAdmin />
+    </div>
+  ) : (
+    <ContenidoGenerico view={view} setView={setView} />
+  )
+}
+
+function ViewSwitcher({ view, setView }: { view: 'general' | 'quienes-somos'; setView: (v: 'general' | 'quienes-somos') => void }) {
+  return (
+    <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
+      <div>
+        <Eyebrow>ADMINISTRACIÓN</Eyebrow>
+        <h1 className="mt-1.5 text-[22px] sm:text-[26px] text-ink tracking-tight font-extrabold">Contenido público</h1>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => setView('general')}
+          className="h-9 px-3.5 rounded-md text-[12.5px] font-semibold"
+          style={view === 'general' ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--surface-inset)', color: 'var(--text-body)' }}
+        >
+          Contenido genérico
+        </button>
+        <button
+          onClick={() => setView('quienes-somos')}
+          className="h-9 px-3.5 rounded-md text-[12.5px] font-semibold"
+          style={view === 'quienes-somos' ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--surface-inset)', color: 'var(--text-body)' }}
+        >
+          Quiénes Somos
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ContenidoGenerico({ view, setView }: { view: 'general' | 'quienes-somos'; setView: (v: 'general' | 'quienes-somos') => void }) {
   const queryClient = useQueryClient()
   const [sectionFilter, setSectionFilter] = useState<string>('')
   const [editing, setEditing] = useState<ContentItem | null>(null)
@@ -100,11 +140,9 @@ export default function ContenidoPublico() {
 
   return (
     <div className="p-4 sm:p-6 animate-viewin">
-      <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
-        <div>
-          <Eyebrow>ADMINISTRACIÓN</Eyebrow>
-          <h1 className="mt-1.5 text-[22px] sm:text-[26px] text-ink tracking-tight font-extrabold">Contenido público</h1>
-        </div>
+      <ViewSwitcher view={view} setView={setView} />
+
+      <div className="flex justify-end mb-4">
         <button
           onClick={openCreate}
           className="h-10 px-4 rounded-md text-white font-semibold text-[13px] inline-flex items-center gap-1.5"

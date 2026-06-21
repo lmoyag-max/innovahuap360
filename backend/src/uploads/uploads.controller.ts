@@ -12,23 +12,28 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
 import type { Response } from 'express';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.interface';
 import { UploadsService } from './uploads.service';
 
-const UPLOADS_DIR = process.env.UPLOADS_DIR ?? './uploads';
+export const UPLOADS_DIR = process.env.UPLOADS_DIR ?? './uploads';
 
-const ALLOWED_MIME_TO_EXT: Record<string, string> = {
+export const ALLOWED_MIME_TO_EXT: Record<string, string> = {
   'application/pdf': '.pdf',
   'image/png': '.png',
   'image/jpeg': '.jpg',
   'image/webp': '.webp',
 };
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+export const IMAGE_MIME_TO_EXT: Record<string, string> = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/webp': '.webp',
+};
+
+export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 @ApiTags('uploads')
 @Controller('uploads')
@@ -81,7 +86,6 @@ export class UploadsController {
   @RequirePermissions()
   async download(@Param('id') id: string, @Res() res: Response) {
     const upload = await this.service.findOne(id);
-    const filePath = resolve(UPLOADS_DIR, upload.storedName);
-    res.download(filePath, upload.originalName);
+    res.download(this.service.getFilePath(upload), upload.originalName);
   }
 }

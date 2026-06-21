@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { ContentSection, PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
 import { HUAP_UNITS } from './seed-units';
@@ -134,6 +134,41 @@ async function main() {
     console.log(`Password: ${superAdminPassword}  (cámbiela al iniciar sesión)`);
     // eslint-disable-next-line no-console
     console.log('===================================\n');
+  }
+
+  // Página pública "Quiénes Somos": migra al modelo administrable el
+  // encabezado y los integrantes que hoy están hardcodeados en
+  // frontend/src/data/public.ts, para que el contenido siga viéndose igual
+  // apenas se despliega esta migración (continuidad, sin datos inventados).
+  const ABOUT_SLUG = 'quienes-somos';
+  const existingAboutContent = await prisma.publicContent.findUnique({ where: { slug: ABOUT_SLUG } });
+  if (!existingAboutContent) {
+    await prisma.publicContent.create({
+      data: {
+        section: ContentSection.QUIENES_SOMOS,
+        slug: ABOUT_SLUG,
+        title: 'El gobierno de la innovación del HUAP',
+        excerpt:
+          'El Comité de Innovación articula, prioriza y acompaña las iniciativas que mejoran la atención de urgencia. Creemos que la innovación pertenece a todos los funcionarios y usuarios del hospital.',
+        isPublished: true,
+        publishedAt: new Date(),
+      },
+    });
+  }
+
+  const hasAboutMembers = (await prisma.aboutMember.count()) > 0;
+  if (!hasAboutMembers) {
+    const seedMembers = [
+      { name: 'Dra. Rosa Cárcamo', role: 'Coordinadora del Comité' },
+      { name: 'Dr. Manuel Soto', role: 'Dirección Médica' },
+      { name: 'Ing. Pablo Rivas', role: 'Transformación Digital' },
+      { name: 'EU. Carolina Díaz', role: 'Humanización y Cuidados' },
+      { name: 'Sr. Andrés Vera', role: 'Gestión y Calidad' },
+      { name: 'Sra. Laura Pino', role: 'Comunicaciones' },
+    ];
+    await prisma.aboutMember.createMany({
+      data: seedMembers.map((m, i) => ({ ...m, sortOrder: i, isActive: true })),
+    });
   }
 }
 
