@@ -21,7 +21,9 @@ const PERMISSIONS = [
   'audit.read',
   'settings.manage',
   'innovaia.use',
-  'ideas.read', 'ideas.manage',
+  // ideas.delete separado de ideas.manage: solo admin/super_admin pueden
+  // eliminar/restaurar/destacar ideas, igual que public_content.delete.
+  'ideas.read', 'ideas.manage', 'ideas.delete',
   'units.read', 'units.manage',
 ];
 

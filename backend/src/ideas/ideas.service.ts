@@ -43,12 +43,13 @@ export class IdeasService {
     this.frontendUrl = config.get('frontendUrl', { infer: true });
   }
 
-  findAll(filters: { status?: IdeaStatus; unitId?: string; search?: string }) {
+  findAll(filters: { status?: IdeaStatus; unitId?: string; search?: string; deleted?: boolean }) {
     return this.prisma.idea.findMany({
       where: {
         status: filters.status,
         unitId: filters.unitId,
         title: filters.search ? { contains: filters.search, mode: 'insensitive' } : undefined,
+        deletedAt: filters.deleted ? { not: null } : null,
       },
       include: { unit: true, _count: { select: { comments: true } } },
       orderBy: { createdAt: 'desc' },
@@ -62,11 +63,12 @@ export class IdeasService {
   }
 
   async getStats() {
+    const active = { deletedAt: null } as const;
     const [total, byStatus, byUnit, byType] = await Promise.all([
-      this.prisma.idea.count(),
-      this.prisma.idea.groupBy({ by: ['status'], _count: { _all: true } }),
-      this.prisma.idea.groupBy({ by: ['unitId'], _count: { _all: true }, orderBy: { _count: { unitId: 'desc' } }, take: 8 }),
-      this.prisma.idea.groupBy({ by: ['projectType'], _count: { _all: true } }),
+      this.prisma.idea.count({ where: active }),
+      this.prisma.idea.groupBy({ by: ['status'], where: active, _count: { _all: true } }),
+      this.prisma.idea.groupBy({ by: ['unitId'], where: active, _count: { _all: true }, orderBy: { _count: { unitId: 'desc' } }, take: 8 }),
+      this.prisma.idea.groupBy({ by: ['projectType'], where: active, _count: { _all: true } }),
     ]);
     const units = await this.prisma.unit.findMany({ where: { id: { in: byUnit.map((u) => u.unitId) } } });
     const unitNameById = new Map(units.map((u) => [u.id, u.name]));
@@ -167,6 +169,20 @@ export class IdeasService {
     await this.notifyStatusChanged(updated, IdeaStatus.EN_EJECUCION, `Tu idea fue convertida en el proyecto "${project.name}"`);
 
     return updated;
+  }
+
+  async softDelete(id: string, userId: string) {
+    await this.findOne(id);
+    const idea = await this.prisma.idea.update({ where: { id }, data: { deletedAt: new Date() } });
+    await this.audit.log({ userId, action: 'ideas.delete', entityType: 'idea', entityId: id });
+    return idea;
+  }
+
+  async restore(id: string, userId: string) {
+    await this.findOne(id);
+    const idea = await this.prisma.idea.update({ where: { id }, data: { deletedAt: null } });
+    await this.audit.log({ userId, action: 'ideas.restore', entityType: 'idea', entityId: id });
+    return idea;
   }
 
   // ---- Notificaciones (no bloquean el flujo si fallan) ----

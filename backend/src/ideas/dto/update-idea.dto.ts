@@ -1,5 +1,5 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-import { IdeaStatus } from '@prisma/client';
+import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IdeaPriority, IdeaStatus } from '@prisma/client';
 
 export class UpdateIdeaDto {
   @IsOptional()
@@ -10,4 +10,12 @@ export class UpdateIdeaDto {
   @IsString()
   @MaxLength(2000)
   triageNote?: string;
+
+  @IsOptional()
+  @IsEnum(IdeaPriority)
+  priority?: IdeaPriority;
+
+  @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean;
 }

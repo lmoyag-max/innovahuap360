@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -99,8 +100,13 @@ export class IdeasController {
 
   @Get('ideas')
   @RequirePermissions('ideas.read')
-  findAll(@Query('status') status?: IdeaStatus, @Query('unitId') unitId?: string, @Query('search') search?: string) {
-    return this.service.findAll({ status, unitId, search });
+  findAll(
+    @Query('status') status?: IdeaStatus,
+    @Query('unitId') unitId?: string,
+    @Query('search') search?: string,
+    @Query('deleted') deleted?: string,
+  ) {
+    return this.service.findAll({ status, unitId, search, deleted: deleted === 'true' });
   }
 
   @Get('ideas/:id')
@@ -125,5 +131,17 @@ export class IdeasController {
   @RequirePermissions('ideas.manage')
   convertToProject(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.service.convertToProject(id, user.fullName);
+  }
+
+  @Delete('ideas/:id')
+  @RequirePermissions('ideas.delete')
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.softDelete(id, user.sub);
+  }
+
+  @Post('ideas/:id/restore')
+  @RequirePermissions('ideas.delete')
+  restore(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.restore(id, user.sub);
   }
 }
