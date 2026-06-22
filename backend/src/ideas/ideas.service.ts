@@ -16,6 +16,7 @@ const IDEA_INCLUDE = {
   fichaUpload: { select: { id: true, originalName: true, mimeType: true, sizeBytes: true } },
   comments: { orderBy: { createdAt: 'desc' as const } },
   statusHistory: { orderBy: { createdAt: 'desc' as const } },
+  resultingProject: { select: { id: true, name: true, stage: true } },
 } as const;
 
 const STATUS_LABELS: Record<IdeaStatus, string> = {
@@ -51,7 +52,11 @@ export class IdeasService {
         title: filters.search ? { contains: filters.search, mode: 'insensitive' } : undefined,
         deletedAt: filters.deleted ? { not: null } : null,
       },
-      include: { unit: true, _count: { select: { comments: true } } },
+      include: {
+        unit: true,
+        _count: { select: { comments: true } },
+        resultingProject: { select: { id: true, name: true, stage: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -104,8 +109,12 @@ export class IdeasService {
       data: { ideaId: idea.id, fromStatus: null, toStatus: IdeaStatus.RECIBIDA, changedByName: 'Postulante (portal público)' },
     });
 
+    // La idea ya quedó guardada; si la creación automática del proyecto
+    // falla, no debe perderse el registro (ver autoCreateProjectForIdea).
+    await this.autoCreateProjectForIdea(idea);
     await this.notifyCreated(idea);
-    return idea;
+
+    return this.findOne(idea.id);
   }
 
   async update(id: string, dto: UpdateIdeaDto, changedByName: string) {
@@ -140,8 +149,8 @@ export class IdeasService {
 
   async convertToProject(id: string, changedByName: string) {
     const idea = await this.findOne(id);
-    if (idea.status === IdeaStatus.EN_EJECUCION || idea.status === IdeaStatus.CERRADA) {
-      throw new BadRequestException('Esta idea ya fue convertida en proyecto');
+    if (idea.resultingProjectId) {
+      throw new ConflictException('Esta idea ya tiene un proyecto asociado');
     }
     if (idea.status !== IdeaStatus.APROBADA) {
       throw new ConflictException('Solo se puede convertir en proyecto una idea Aprobada');
@@ -166,9 +175,62 @@ export class IdeasService {
     await this.prisma.ideaStatusHistory.create({
       data: { ideaId: id, fromStatus: idea.status, toStatus: IdeaStatus.EN_EJECUCION, changedByName, note: `Convertida en proyecto: ${project.name}` },
     });
+    await this.audit.log({ action: 'ideas.project_autocreated', entityType: 'idea', entityId: id, metadata: { projectId: project.id, via: 'manual' } });
     await this.notifyStatusChanged(updated, IdeaStatus.EN_EJECUCION, `Tu idea fue convertida en el proyecto "${project.name}"`);
 
     return updated;
+  }
+
+  // Reintento manual para ideas cuyo proyecto automático falló al nacer
+  // (ver autoCreateProjectForIdea). Solo aplica si todavía no tienen proyecto.
+  async retryProjectCreation(id: string, changedByName: string) {
+    const idea = await this.findOne(id);
+    if (idea.resultingProjectId) {
+      throw new ConflictException('Esta idea ya tiene un proyecto asociado');
+    }
+
+    const project = await this.autoCreateProjectForIdea(idea, changedByName);
+    if (!project) {
+      throw new ConflictException('No fue posible crear el proyecto automáticamente. Revisa el registro de auditoría para más detalles e inténtalo nuevamente.');
+    }
+    return this.findOne(id);
+  }
+
+  // Crea el proyecto asociado a una idea recién nacida, dejándolo en la
+  // etapa inicial del pipeline ("Idea recibida"). Si falla, NO se propaga el
+  // error (la idea ya quedó guardada) — solo se registra en auditoría para
+  // que el Comité pueda reintentar vía retryProjectCreation.
+  private async autoCreateProjectForIdea(
+    idea: { id: string; title: string; description: string; projectType: string; proponentName: string },
+    changedByName = 'Sistema (Banco de Ideas)',
+  ) {
+    try {
+      const project = await this.prisma.project.create({
+        data: {
+          name: idea.title,
+          description: idea.description,
+          category: idea.projectType,
+          ownerName: idea.proponentName,
+          sponsor: idea.proponentName,
+        },
+      });
+      await this.prisma.idea.update({ where: { id: idea.id }, data: { resultingProjectId: project.id } });
+      await this.audit.log({
+        action: 'ideas.project_autocreated',
+        entityType: 'idea',
+        entityId: idea.id,
+        metadata: { projectId: project.id, stage: project.stage, via: changedByName === 'Sistema (Banco de Ideas)' ? 'auto' : 'retry' },
+      });
+      return project;
+    } catch (error) {
+      await this.audit.log({
+        action: 'ideas.project_autocreate_failed',
+        entityType: 'idea',
+        entityId: idea.id,
+        metadata: { error: error instanceof Error ? error.message : String(error) },
+      });
+      return null;
+    }
   }
 
   async softDelete(id: string, userId: string) {

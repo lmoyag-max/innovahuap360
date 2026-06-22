@@ -140,6 +140,13 @@ export class IdeasController {
     return this.service.convertToProject(id, user.fullName);
   }
 
+  @Post('ideas/:id/retry-project')
+  @RequirePermissions('ideas.manage')
+  @RequireModule('ideas')
+  retryProject(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.retryProjectCreation(id, user.fullName);
+  }
+
   @Delete('ideas/:id')
   @RequirePermissions('ideas.delete')
   @RequireModule('ideas')

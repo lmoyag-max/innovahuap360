@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core'
 import {
   Plus, X, Search, Kanban as KanbanIcon, LayoutGrid, Table2, GripVertical,
-  ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, ChevronDown, ImageOff,
+  ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, ChevronDown, ImageOff, Lightbulb,
 } from 'lucide-react'
 import { Eyebrow, Dot, Badge, ProgressBar } from '../../components/ui'
 import { api, apiErrorMessage } from '../../lib/api'
@@ -31,6 +31,19 @@ interface ProjectRow {
   progressPct: number | null
   imageUrl: string | null
   updatedAt: string
+  ideas?: { id: string; title: string; proponentName: string }[]
+}
+
+function OriginBadge() {
+  return (
+    <span
+      title="Este proyecto nació de una idea en el Banco de Ideas"
+      className="inline-flex items-center gap-1 text-[9.5px] font-bold px-1.5 py-0.5 rounded-full"
+      style={{ color: 'var(--accent)', background: 'var(--accent-50)' }}
+    >
+      <Lightbulb size={10} /> Banco de Ideas
+    </span>
+  )
 }
 
 type ViewMode = 'kanban' | 'tarjetas' | 'tabla'
@@ -344,6 +357,7 @@ function KanbanCard({ project: c, canManage, onMove }: { project: ProjectRow; ca
         )}
         <Dot color={RISK_META[c.riskLevel].color} size={7} />
         <span className="font-mono text-[10px] text-muted">Riesgo {c.riskLevel.toLowerCase()}</span>
+        {!!c.ideas?.length && <span className="ml-auto"><OriginBadge /></span>}
       </div>
       <Link to={`/app/proyectos/${c.id}`} className="text-[13.5px] font-semibold text-ink leading-snug mb-2.5 block hover:text-[var(--accent)] transition-colors">
         {c.name}
@@ -428,6 +442,7 @@ function ProjectGridCard({ project: p }: { project: ProjectRow }) {
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <StageBadge stage={p.stage} />
           <RiskBadge riskLevel={p.riskLevel} />
+          {!!p.ideas?.length && <OriginBadge />}
         </div>
         <h4 className="text-[15px] text-ink tracking-tight leading-snug mb-2 font-semibold group-hover:text-[var(--accent)] transition-colors">
           {p.name}

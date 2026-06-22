@@ -36,7 +36,10 @@ export class ProjectsService {
   findAll() {
     return this.prisma.project.findMany({
       orderBy: { updatedAt: 'desc' },
-      include: { _count: { select: { tasks: { where: { deletedAt: null } } } } },
+      include: {
+        _count: { select: { tasks: { where: { deletedAt: null } } } },
+        ideas: { select: { id: true, title: true, proponentName: true } },
+      },
     });
   }
 
@@ -46,6 +49,7 @@ export class ProjectsService {
       include: {
         tasks: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' }, include: TASK_INCLUDE },
         feasibility: { orderBy: { sortOrder: 'asc' } },
+        ideas: { select: { id: true, title: true, proponentName: true, status: true, description: true, createdAt: true } },
       },
     });
     if (!project) throw new NotFoundException('Proyecto no encontrado');

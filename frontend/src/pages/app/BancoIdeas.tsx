@@ -17,6 +17,7 @@ import { useAuth } from '../../lib/auth-context'
 type IdeaStatus = 'RECIBIDA' | 'EN_REVISION' | 'OBSERVADA' | 'FACTIBILIDAD' | 'APROBADA' | 'RECHAZADA' | 'EN_EJECUCION' | 'CERRADA'
 type IdeaPriority = 'BAJA' | 'MEDIA' | 'ALTA'
 
+interface ResultingProjectRef { id: string; name: string; stage: string }
 interface IdeaRow {
   id: string
   title: string
@@ -29,6 +30,7 @@ interface IdeaRow {
   deletedAt: string | null
   createdAt: string
   _count: { comments: number }
+  resultingProject: ResultingProjectRef | null
 }
 interface Comment { id: string; authorName: string; comment: string; createdAt: string }
 interface StatusHistoryEntry { id: string; fromStatus: IdeaStatus | null; toStatus: IdeaStatus; changedByName: string | null; note: string | null; createdAt: string }
@@ -42,6 +44,7 @@ interface IdeaDetail extends IdeaRow {
   triageNote: string | null
   fichaUpload: { id: string; originalName: string; sizeBytes?: number }
   resultingProjectId: string | null
+  resultingProject: ResultingProjectRef | null
   comments: Comment[]
   statusHistory: StatusHistoryEntry[]
 }
@@ -153,6 +156,10 @@ export default function BancoIdeas() {
   })
   const convertMutation = useMutation({
     mutationFn: (id: string) => api.post(`/ideas/${id}/convert-to-project`),
+    onSuccess: invalidate,
+  })
+  const retryProjectMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/ideas/${id}/retry-project`),
     onSuccess: invalidate,
   })
   const featureMutation = useMutation({
@@ -379,6 +386,15 @@ export default function BancoIdeas() {
                   {idea.deletedAt && (
                     <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ background: 'var(--slate-500)' }}>ELIMINADA</span>
                   )}
+                  {idea.resultingProject && (
+                    <span
+                      title="Ya tiene un proyecto asociado en Proyectos"
+                      className="inline-flex items-center gap-1 text-[9.5px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ color: 'var(--green-600)', background: 'var(--green-50)' }}
+                    >
+                      Proyecto creado
+                    </span>
+                  )}
                   <span className="text-[11px] text-muted ml-auto">{PROJECT_TYPE_LABEL[idea.projectType]}</span>
                 </div>
                 <div className="text-[13.5px] font-semibold text-ink leading-snug">{idea.title}</div>
@@ -460,7 +476,7 @@ export default function BancoIdeas() {
                     Mover a {STATUS_META[next].label}
                   </button>
                 ))}
-                {detail.status === 'APROBADA' && (
+                {detail.status === 'APROBADA' && !detail.resultingProjectId && (
                   <button
                     onClick={() => convertMutation.mutate(detail.id)}
                     disabled={convertMutation.isPending}
@@ -473,16 +489,36 @@ export default function BancoIdeas() {
               </div>
             )}
 
-            {detail.resultingProjectId && (detail.status === 'EN_EJECUCION' || detail.status === 'CERRADA') && (
-              <div className="mb-3">
+            {detail.resultingProject ? (
+              <div className="mb-3 flex items-center gap-2 flex-wrap">
+                <span
+                  className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ color: 'var(--green-600)', background: 'var(--green-50)' }}
+                >
+                  Origen: Banco de Ideas — Proyecto creado
+                </span>
                 <Link
-                  to={`/app/proyectos/${detail.resultingProjectId}`}
+                  to={`/app/proyectos/${detail.resultingProject.id}`}
                   className="text-[12px] font-bold px-3 py-1.5 rounded-md text-white inline-flex items-center gap-1.5 transition-transform hover:-translate-y-0.5"
                   style={{ background: 'var(--accent)' }}
                 >
-                  Ver proyecto en Proyectos <ArrowRight size={13} />
+                  Ver "{detail.resultingProject.name}" en Proyectos <ArrowRight size={13} />
                 </Link>
               </div>
+            ) : (
+              canManage && !detail.deletedAt && (
+                <div className="mb-3 flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] text-muted">Esta idea aún no tiene proyecto asociado.</span>
+                  <button
+                    onClick={() => retryProjectMutation.mutate(detail.id)}
+                    disabled={retryProjectMutation.isPending}
+                    className="text-[12px] font-semibold px-3 py-1.5 rounded-md border disabled:opacity-60 transition-transform hover:-translate-y-0.5"
+                    style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}
+                  >
+                    Reintentar creación de proyecto
+                  </button>
+                </div>
+              )
             )}
 
             {canAdminister && (
@@ -524,9 +560,9 @@ export default function BancoIdeas() {
                 )}
               </div>
             )}
-            {(statusMutation.error || convertMutation.error || deleteMutation.error || restoreMutation.error) && (
+            {(statusMutation.error || convertMutation.error || retryProjectMutation.error || deleteMutation.error || restoreMutation.error) && (
               <p className="text-[11px] mb-3" style={{ color: 'var(--accent)' }}>
-                {apiErrorMessage(statusMutation.error ?? convertMutation.error ?? deleteMutation.error ?? restoreMutation.error)}
+                {apiErrorMessage(statusMutation.error ?? convertMutation.error ?? retryProjectMutation.error ?? deleteMutation.error ?? restoreMutation.error)}
               </p>
             )}
 

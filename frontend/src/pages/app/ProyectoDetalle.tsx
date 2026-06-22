@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  ArrowLeft, Pencil, Trash2, CheckCircle2, Circle, Image as ImageIcon, AlertTriangle, X,
+  ArrowLeft, Pencil, Trash2, CheckCircle2, Circle, Image as ImageIcon, AlertTriangle, X, Lightbulb,
 } from 'lucide-react'
 import { Eyebrow, Dot, Badge, ProgressBar } from '../../components/ui'
 import { api, apiErrorMessage } from '../../lib/api'
@@ -39,6 +39,7 @@ interface ProjectDetail {
   imageUrl: string | null
   tasks: ProjectTask[]
   feasibility: FeasibilityCriterion[]
+  ideas?: { id: string; title: string; proponentName: string; status: string; description: string; createdAt: string }[]
 }
 interface StageHistoryEntry {
   id: string
@@ -186,6 +187,26 @@ export default function ProyectoDetalle() {
             </button>
           </div>
           {deleteMutation.error && <p className="text-[11.5px] mt-2" style={{ color: 'var(--accent)' }}>{apiErrorMessage(deleteMutation.error)}</p>}
+        </div>
+      )}
+
+      {!!project.ideas?.length && (
+        <div className="bg-card border border-line rounded-card p-5 mb-5" style={{ borderColor: 'var(--accent-100)' }}>
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <Lightbulb size={14} style={{ color: 'var(--accent)' }} />
+            <Eyebrow>ORIGEN: BANCO DE IDEAS</Eyebrow>
+          </div>
+          {project.ideas.map((idea) => (
+            <div key={idea.id} className="mb-2 last:mb-0">
+              <Link to="/app/ideas" className="text-[13px] font-semibold hover:underline" style={{ color: 'var(--accent)' }}>
+                {idea.title}
+              </Link>
+              <p className="text-[12px] text-muted mt-0.5">
+                Propuesta por {idea.proponentName} el {fmtDate(idea.createdAt)} · Estado de la idea: {idea.status}
+              </p>
+              <p className="text-[12.5px] text-body mt-1.5 leading-relaxed">{idea.description}</p>
+            </div>
+          ))}
         </div>
       )}
 
