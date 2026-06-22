@@ -4,4 +4,5 @@ export interface AuthenticatedUser {
   fullName: string;
   roleKey: string;
   permissions: string[];
+  moduleKeys: string[];
 }

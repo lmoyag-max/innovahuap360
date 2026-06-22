@@ -141,7 +141,7 @@ export default function PublicLayout() {
             </p>
           </div>
           <div className="flex gap-12 flex-wrap">
-            <FooterCol title="PLATAFORMA" links={['Portafolio', 'Observatorio', 'Conocimiento', 'Eventos']} />
+            <FooterCol title="PLATAFORMA" links={['Proyectos', 'Observatorio', 'Conocimiento', 'Eventos']} />
             <FooterCol title="COMITÉ" links={['Quiénes somos', 'Política de innovación', 'Gobernanza', 'Contacto']} />
           </div>
         </div>

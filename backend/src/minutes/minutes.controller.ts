@@ -1,6 +1,8 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { MinuteStatus } from '@prisma/client';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireModule } from '../common/decorators/module.decorator';
 import { CreateMinuteDto } from './dto/create-minute.dto';
 import { UpdateMinuteDto } from './dto/update-minute.dto';
 import { UpsertAgreementDto } from './dto/upsert-agreement.dto';
@@ -9,12 +11,26 @@ import { MinutesService } from './minutes.service';
 @ApiTags('minutes')
 @Controller('minutes')
 @RequirePermissions('minutes.read')
+@RequireModule('minutes')
 export class MinutesController {
   constructor(private readonly service: MinutesService) {}
 
+  @Get('stats')
+  getStats() {
+    return this.service.getStats();
+  }
+
   @Get()
-  findAll() {
-    return this.service.findAll();
+  findAll(
+    @Query('search') search?: string,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('type') type?: 'ORDINARIA' | 'EXTRAORDINARIA',
+    @Query('secretary') secretary?: string,
+    @Query('status') status?: MinuteStatus,
+    @Query('tag') tag?: string,
+  ) {
+    return this.service.findAll({ search, year, month, type, secretary, status, tag });
   }
 
   @Get(':id')

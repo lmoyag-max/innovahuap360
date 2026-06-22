@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsString, MinLength } from 'class-validator';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireModule } from '../common/decorators/module.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
@@ -19,6 +20,7 @@ class ResetPasswordDto {
 
 @ApiTags('users')
 @Controller('admin/users')
+@RequireModule('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

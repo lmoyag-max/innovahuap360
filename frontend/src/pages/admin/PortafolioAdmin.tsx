@@ -8,16 +8,16 @@ import SectionItemsAdmin from './SectionItemsAdmin'
  * un proyecto interno solo como referencia — eliminar una publicación
  * pública nunca borra ni modifica el proyecto real. La gestión del
  * proyecto en sí (etapa, riesgo, tareas, factibilidad) sigue siendo
- * exclusiva de Portafolio Interno. */
+ * exclusiva del módulo Proyectos. */
 export default function PortafolioAdmin() {
   return (
     <div>
       <p className="text-[12.5px] text-muted mb-4">
-        Administra las publicaciones que aparecen en <strong>/portafolio</strong>. Son independientes del
+        Administra las publicaciones que aparecen en <strong>/proyectos</strong>. Son independientes del
         seguimiento real de cada proyecto — puedes vincular una a un proyecto interno solo como referencia. La
         gestión de etapas, riesgo y tareas sigue en{' '}
-        <a href="/app/portafolio" className="font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}>
-          Portafolio interno <ExternalLink size={12} />
+        <a href="/app/proyectos" className="font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}>
+          Proyectos <ExternalLink size={12} />
         </a>.
       </p>
       <SectionItemsAdmin section="PORTAFOLIO" showPortfolioFields />

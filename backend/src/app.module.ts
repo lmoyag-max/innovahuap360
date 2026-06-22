@@ -6,6 +6,7 @@ import configuration from './config/configuration';
 import { PrismaModule } from './prisma/prisma.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
+import { ModuleAccessGuard } from './common/guards/module-access.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 import { AuthModule } from './auth/auth.module';
@@ -26,6 +27,7 @@ import { HealthModule } from './health/health.module';
 import { InnovaIaModule } from './innovaia/innovaia.module';
 import { IdeasModule } from './ideas/ideas.module';
 import { UnitsModule } from './units/units.module';
+import { FactibilidadModule } from './factibilidad/factibilidad.module';
 
 @Module({
   imports: [
@@ -51,11 +53,13 @@ import { UnitsModule } from './units/units.module';
     InnovaIaModule,
     IdeasModule,
     UnitsModule,
+    FactibilidadModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    { provide: APP_GUARD, useClass: ModuleAccessGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })

@@ -5,6 +5,7 @@ import { memoryStorage } from 'multer';
 import { IsBoolean } from 'class-validator';
 import { Public } from '../common/decorators/public.decorator';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireModule } from '../common/decorators/module.decorator';
 import { CreateUnitDto, UpdateUnitDto } from './dto/create-unit.dto';
 import { UnitsService } from './units.service';
 
@@ -33,30 +34,35 @@ export class UnitsController {
 
   @Get('admin/units')
   @RequirePermissions('units.read')
+  @RequireModule('units')
   findAll(@Query('includeInactive') includeInactive?: string) {
     return this.service.findAll(includeInactive === 'true');
   }
 
   @Post('admin/units')
   @RequirePermissions('units.manage')
+  @RequireModule('units')
   create(@Body() dto: CreateUnitDto) {
     return this.service.create(dto);
   }
 
   @Patch('admin/units/:id')
   @RequirePermissions('units.manage')
+  @RequireModule('units')
   update(@Param('id') id: string, @Body() dto: UpdateUnitDto) {
     return this.service.update(id, dto);
   }
 
   @Patch('admin/units/:id/active')
   @RequirePermissions('units.manage')
+  @RequireModule('units')
   setActive(@Param('id') id: string, @Body() dto: SetUnitActiveDto) {
     return this.service.setActive(id, dto.isActive);
   }
 
   @Post('admin/units/import-excel')
   @RequirePermissions('units.manage')
+  @RequireModule('units')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),

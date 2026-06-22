@@ -13,25 +13,25 @@ datasource db {
 // ===================== Identidad y acceso =====================
 
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  passwordHash    String    @map("password_hash")
-  fullName        String    @map("full_name")
-  initials        String
-  position        String?
-  isActive        Boolean   @default(true) @map("is_active")
-  mustChangePass  Boolean   @default(false) @map("must_change_pass")
-  lastLoginAt     DateTime? @map("last_login_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String    @map("password_hash")
+  fullName       String    @map("full_name")
+  initials       String
+  position       String?
+  isActive       Boolean   @default(true) @map("is_active")
+  mustChangePass Boolean   @default(false) @map("must_change_pass")
+  lastLoginAt    DateTime? @map("last_login_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  roleId          String    @map("role_id")
-  role            Role      @relation(fields: [roleId], references: [id])
+  roleId String @map("role_id")
+  role   Role   @relation(fields: [roleId], references: [id])
 
-  refreshTokens   RefreshToken[]
-  resetTokens     PasswordResetToken[]
-  auditLogs       AuditLog[]
-  uploads         Upload[]
+  refreshTokens       RefreshToken[]
+  resetTokens         PasswordResetToken[]
+  auditLogs           AuditLog[]
+  uploads             Upload[]
   committeeMembership CommitteeMember?
 
   @@map("users")
@@ -44,18 +44,19 @@ model Role {
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
 
-  users       User[]
-  permissions RolePermission[]
+  users        User[]
+  permissions  RolePermission[]
+  moduleAccess RoleModule[]
 
   @@map("roles")
 }
 
 model Permission {
-  id          String   @id @default(uuid())
-  key         String   @unique // e.g. "public_content.manage", "users.manage"
+  id          String  @id @default(uuid())
+  key         String  @unique // e.g. "public_content.manage", "users.manage"
   description String?
 
-  roles       RolePermission[]
+  roles RolePermission[]
 
   @@map("permissions")
 }
@@ -70,17 +71,46 @@ model RolePermission {
   @@map("role_permissions")
 }
 
+// ===================== Acceso a Módulos (capa de navegación por rol) =====================
+// Independiente de Permission/RolePermission (que gobiernan acciones de API).
+// Controla qué módulos de navegación ve y puede abrir cada rol. La presencia
+// de una fila RoleModule = módulo habilitado, igual patrón que RolePermission.
+
+model Module {
+  id         String   @id @default(uuid())
+  key        String   @unique // e.g. "dashboard", "ideas", "projects", "gantt"
+  name       String
+  groupKey   String   @map("group_key") // "gestion" | "conocimiento" | "inteligencia" | "administracion"
+  groupLabel String   @map("group_label")
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  roles RoleModule[]
+
+  @@map("modules")
+}
+
+model RoleModule {
+  roleId   String @map("role_id")
+  moduleId String @map("module_id")
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, moduleId])
+  @@map("role_modules")
+}
+
 model RefreshToken {
-  id          String    @id @default(uuid())
-  tokenHash   String    @unique @map("token_hash")
-  userId      String    @map("user_id")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt   DateTime  @map("expires_at")
-  revokedAt   DateTime? @map("revoked_at")
-  replacedBy  String?   @map("replaced_by")
-  ip          String?
-  userAgent   String?   @map("user_agent")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique @map("token_hash")
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  replacedBy String?   @map("replaced_by")
+  ip         String?
+  userAgent  String?   @map("user_agent")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   @@map("refresh_tokens")
 }
@@ -112,47 +142,47 @@ enum ContentSection {
 }
 
 model PublicContent {
-  id          String         @id @default(uuid())
-  section     ContentSection
-  title       String
-  slug        String         @unique
-  excerpt     String?
-  body        String?
+  id               String         @id @default(uuid())
+  section          ContentSection
+  title            String
+  slug             String         @unique
+  excerpt          String?
+  body             String?
   // Campos adicionales usados solo por la página "Quiénes Somos"
   // (section = QUIENES_SOMOS, slug = "quienes-somos", fila única).
   // Quedan null para el resto de las secciones del CMS genérico.
-  secondaryBody String?      @map("secondary_body")
-  mission       String?
-  vision        String?
-  purpose       String?
+  secondaryBody    String?        @map("secondary_body")
+  mission          String?
+  vision           String?
+  purpose          String?
   // Campos adicionales para los "items" administrables de Política,
   // Observatorio y Eventos (cada item es una fila PublicContent con la
   // section correspondiente; itemType distingue el subtipo dentro de la
   // sección, ej. DOCUMENTO/PRINCIPIO/INDICADOR/EVENTO). Quedan null para
   // HOME/NOTICIA/BANNER y para la fila singular de cada encabezado.
-  itemType        String?   @map("item_type")
-  category        String?
-  tags            String[]  @default([])
-  linkUrl         String?   @map("link_url")
-  eventDate       DateTime? @map("event_date")
-  eventLocation   String?   @map("event_location")
-  registrationUrl String?   @map("registration_url")
-  documentUploadId String?  @unique @map("document_upload_id")
-  documentUpload   Upload?  @relation(fields: [documentUploadId], references: [id], onDelete: SetNull)
+  itemType         String?        @map("item_type")
+  category         String?
+  tags             String[]       @default([])
+  linkUrl          String?        @map("link_url")
+  eventDate        DateTime?      @map("event_date")
+  eventLocation    String?        @map("event_location")
+  registrationUrl  String?        @map("registration_url")
+  documentUploadId String?        @unique @map("document_upload_id")
+  documentUpload   Upload?        @relation(fields: [documentUploadId], references: [id], onDelete: SetNull)
   // Portafolio público (Contenido Público → Portafolio): publicación
   // independiente del seguimiento interno del proyecto (Project). Puede
   // referenciar opcionalmente un proyecto real solo para trazabilidad —
   // eliminar esta fila nunca borra ni modifica el Project relacionado.
-  expectedBenefits String? @map("expected_benefits")
-  relatedProjectId String? @map("related_project_id")
-  relatedProject   Project? @relation(fields: [relatedProjectId], references: [id], onDelete: SetNull)
-  imageUrl    String?        @map("image_url")
-  isPublished Boolean        @default(false) @map("is_published")
-  isFeatured  Boolean        @default(false) @map("is_featured")
-  sortOrder   Int            @default(0) @map("sort_order")
-  publishedAt DateTime?      @map("published_at")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  expectedBenefits String?        @map("expected_benefits")
+  relatedProjectId String?        @map("related_project_id")
+  relatedProject   Project?       @relation(fields: [relatedProjectId], references: [id], onDelete: SetNull)
+  imageUrl         String?        @map("image_url")
+  isPublished      Boolean        @default(false) @map("is_published")
+  isFeatured       Boolean        @default(false) @map("is_featured")
+  sortOrder        Int            @default(0) @map("sort_order")
+  publishedAt      DateTime?      @map("published_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
 
   @@index([section, isPublished, sortOrder])
   @@map("public_content")
@@ -167,8 +197,8 @@ model PublicContent {
 model AboutMember {
   id            String   @id @default(uuid())
   name          String
-  role          String                         // Cargo
-  unit          String?                        // Servicio/unidad
+  role          String // Cargo
+  unit          String? // Servicio/unidad
   committeeRole String?  @map("committee_role") // Rol dentro del comité (ej. Coordinador/a)
   email         String?
   photoUploadId String?  @unique @map("photo_upload_id")
@@ -278,12 +308,13 @@ model Project {
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
-  tasks       ProjectTask[]
-  feasibility Feasibility[]
-  minutesItems MinuteProject[]
-  ideas       Idea[]
-  stageHistory ProjectStageHistory[]
-  publicEntries PublicContent[]
+  tasks              ProjectTask[]
+  feasibility        Feasibility[]
+  minutesItems       MinuteProject[]
+  ideas              Idea[]
+  stageHistory       ProjectStageHistory[]
+  publicEntries      PublicContent[]
+  fichasFactibilidad FactibilidadFicha[]
 
   @@map("projects")
 }
@@ -292,31 +323,111 @@ model Project {
 // trazada (quién, cuándo, desde/hacia qué etapa) para medir tiempo de ciclo
 // y sustentar las reglas de avance (ver ProjectsService.transitionStage).
 model ProjectStageHistory {
-  id          String        @id @default(uuid())
-  projectId   String        @map("project_id")
-  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  fromStage   ProjectStage  @map("from_stage")
-  toStage     ProjectStage  @map("to_stage")
-  changedByName String?     @map("changed_by_name")
-  note        String?
-  createdAt   DateTime      @default(now()) @map("created_at")
+  id            String       @id @default(uuid())
+  projectId     String       @map("project_id")
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromStage     ProjectStage @map("from_stage")
+  toStage       ProjectStage @map("to_stage")
+  changedByName String?      @map("changed_by_name")
+  note          String?
+  createdAt     DateTime     @default(now()) @map("created_at")
 
   @@index([projectId])
   @@map("project_stage_history")
 }
 
-model ProjectTask {
-  id         String   @id @default(uuid())
-  projectId  String   @map("project_id")
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name       String
-  ownerInitials String @map("owner_initials")
-  startOffsetDays Int  @map("start_offset_days")
-  durationDays    Int  @map("duration_days")
-  progressPct     Int  @default(0) @map("progress_pct")
-  sortOrder       Int  @default(0) @map("sort_order")
+enum ProjectTaskType {
+  HITO
+  TAREA
+}
 
+enum ProjectTaskStatus {
+  PENDIENTE
+  EN_DESARROLLO
+  EN_RIESGO
+  ATRASADO
+  COMPLETADO
+  CANCELADO
+}
+
+enum ProjectTaskPriority {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+model ProjectTask {
+  id              String  @id @default(uuid())
+  projectId       String  @map("project_id")
+  project         Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name            String
+  ownerInitials   String  @map("owner_initials")
+  startOffsetDays Int     @map("start_offset_days")
+  durationDays    Int     @map("duration_days")
+  progressPct     Int     @default(0) @map("progress_pct")
+  sortOrder       Int     @default(0) @map("sort_order")
+
+  type            ProjectTaskType     @default(TAREA)
+  status          ProjectTaskStatus   @default(PENDIENTE)
+  priority        ProjectTaskPriority @default(MEDIA)
+  isCritical      Boolean             @default(false) @map("is_critical")
+  description     String?
+  responsibleName String?             @map("responsible_name")
+  observations    String?
+  deletedAt       DateTime?           @map("deleted_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  dependsOn   ProjectTaskDependency[] @relation("TaskDependsOn")
+  dependents  ProjectTaskDependency[] @relation("TaskDependents")
+  attachments ProjectTaskAttachment[]
+  history     ProjectTaskHistory[]
+
+  @@index([projectId, deletedAt])
   @@map("project_tasks")
+}
+
+// Dependencia entre tareas del mismo proyecto: `task` depende de `dependsOn`
+// (debe completarse `dependsOn` antes/junto con `task`). Auto-relación M2M.
+model ProjectTaskDependency {
+  taskId      String      @map("task_id")
+  task        ProjectTask @relation("TaskDependsOn", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnId String      @map("depends_on_id")
+  dependsOn   ProjectTask @relation("TaskDependents", fields: [dependsOnId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@id([taskId, dependsOnId])
+  @@map("project_task_dependencies")
+}
+
+// Evidencias/adjuntos de una tarea u hito, reutilizando el modelo Upload
+// genérico (mismo patrón que Idea.fichaUpload / Minute.documentUpload).
+model ProjectTaskAttachment {
+  id        String      @id @default(uuid())
+  taskId    String      @map("task_id")
+  task      ProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadId  String      @unique @map("upload_id")
+  upload    Upload      @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@map("project_task_attachments")
+}
+
+// Trazabilidad de cambios de una tarea/hito (mismo patrón que
+// ProjectStageHistory / IdeaStatusHistory).
+model ProjectTaskHistory {
+  id            String      @id @default(uuid())
+  taskId        String      @map("task_id")
+  task          ProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  changedByName String?     @map("changed_by_name")
+  field         String
+  fromValue     String?     @map("from_value")
+  toValue       String?     @map("to_value")
+  note          String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@index([taskId])
+  @@map("project_task_history")
 }
 
 // ===================== Unidades y servicios HUAP =====================
@@ -331,7 +442,8 @@ model Unit {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  ideas     Idea[]
+  ideas              Idea[]
+  fichasFactibilidad FactibilidadFicha[]
 
   @@map("units")
 }
@@ -414,8 +526,8 @@ model Idea {
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime         @updatedAt @map("updated_at")
 
-  comments       IdeaComment[]
-  statusHistory  IdeaStatusHistory[]
+  comments      IdeaComment[]
+  statusHistory IdeaStatusHistory[]
 
   @@index([status])
   @@index([unitId])
@@ -451,19 +563,38 @@ model IdeaStatusHistory {
 
 // ===================== Actas y acuerdos =====================
 
-model Minute {
-  id           String   @id @default(uuid())
-  title        String
-  sessionDate  DateTime @map("session_date")
-  isExtraordinary Boolean @default(false) @map("is_extraordinary")
-  attendeesCount  Int    @default(0) @map("attendees_count")
-  attendeeInitials String[] @map("attendee_initials")
-  documentUrl  String?  @map("document_url")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+enum MinuteStatus {
+  BORRADOR
+  PUBLICADA
+  ARCHIVADA
+}
 
-  agreements   Agreement[]
-  projects     MinuteProject[]
+model Minute {
+  id               String   @id @default(uuid())
+  title            String
+  sessionDate      DateTime @map("session_date")
+  isExtraordinary  Boolean  @default(false) @map("is_extraordinary")
+  attendeesCount   Int      @default(0) @map("attendees_count")
+  attendeeInitials String[] @map("attendee_initials")
+  documentUrl      String?  @map("document_url")
+
+  // Antecedentes ampliados (biblioteca documental)
+  secretary         String?      @map("secretary")
+  participants      String[]     @default([]) @map("participants")
+  summary           String?      @map("summary")
+  keyAgreementsNote String?      @map("key_agreements_note")
+  commitments       String?      @map("commitments")
+  observations      String?      @map("observations")
+  tags              String[]     @default([]) @map("tags")
+  status            MinuteStatus @default(PUBLICADA) @map("status")
+  documentUploadId  String?      @unique @map("document_upload_id")
+  documentUpload    Upload?      @relation(fields: [documentUploadId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  agreements Agreement[]
+  projects   MinuteProject[]
 
   @@map("minutes")
 }
@@ -486,15 +617,15 @@ enum AgreementState {
 }
 
 model Agreement {
-  id           String         @id @default(uuid())
-  minuteId     String         @map("minute_id")
-  minute       Minute         @relation(fields: [minuteId], references: [id], onDelete: Cascade)
-  description  String
-  responsible  String
-  dueDate      DateTime?      @map("due_date")
-  state        AgreementState @default(PENDIENTE)
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  id          String         @id @default(uuid())
+  minuteId    String         @map("minute_id")
+  minute      Minute         @relation(fields: [minuteId], references: [id], onDelete: Cascade)
+  description String
+  responsible String
+  dueDate     DateTime?      @map("due_date")
+  state       AgreementState @default(PENDIENTE)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
 
   @@map("agreements")
 }
@@ -502,15 +633,149 @@ model Agreement {
 // ===================== Factibilidad =====================
 
 model Feasibility {
-  id          String   @id @default(uuid())
-  projectId   String   @map("project_id")
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  criterionName String @map("criterion_name")
-  score       Int      // 0-100
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id            String   @id @default(uuid())
+  projectId     String   @map("project_id")
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  criterionName String   @map("criterion_name")
+  score         Int // 0-100
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   @@map("feasibility")
+}
+
+// ===================== Factibilidad (Fichas) =====================
+// Módulo aditivo: NO reemplaza `Feasibility` (usada por ProjectsService para
+// el gate de gobernanza de transitionStage). FactibilidadService sincroniza
+// la tabla `Feasibility` a partir de la ficha vigente para que ese gate siga
+// funcionando sin que projects.service.ts tenga que conocer estas tablas.
+
+enum FichaFactibilidadStatus {
+  BORRADOR
+  EN_EVALUACION
+  FINALIZADA
+}
+
+enum CriterioCategoria {
+  TECNICA
+  OPERACIONAL
+  NORMATIVA
+}
+
+enum FactibilidadResultado {
+  FACTIBLE
+  FACTIBLE_CON_OBSERVACIONES
+  REQUIERE_MAYOR_ANALISIS
+  NO_FACTIBLE
+}
+
+enum RiesgoProbabilidad {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+enum RiesgoImpacto {
+  BAJO
+  MEDIO
+  ALTO
+}
+
+enum RiesgoNivel {
+  BAJO
+  MEDIO
+  ALTO
+  CRITICO
+}
+
+model FactibilidadFicha {
+  id        String  @id @default(uuid())
+  projectId String  @map("project_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Info general
+  name                 String
+  evaluationDate       DateTime     @map("evaluation_date")
+  responsibleName      String       @map("responsible_name")
+  unitId               String?      @map("unit_id")
+  unit                 Unit?        @relation(fields: [unitId], references: [id])
+  projectStageSnapshot ProjectStage @map("project_stage_snapshot")
+  evaluationObjective  String?      @map("evaluation_objective")
+  description          String?
+
+  // Workflow de la ficha
+  status FichaFactibilidadStatus @default(BORRADOR)
+
+  // Evaluación económica (campos descriptivos/numéricos libres, NO criterios 0-100)
+  estimatedCosts      String? @map("estimated_costs")
+  requiredResources   String? @map("required_resources")
+  licenses            String? @map("licenses")
+  infrastructureCosts String? @map("infrastructure_costs")
+  manHours            Int?    @map("man_hours")
+  recurringCosts      String? @map("recurring_costs")
+  expectedBenefit     String? @map("expected_benefit")
+
+  // Indicadores calculados (recalculados en cada guardado de criterios)
+  globalScore Int?                   @map("global_score")
+  result      FactibilidadResultado?
+
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  criteria  FactibilidadCriterio[]
+  risks     FactibilidadRiesgo[]
+  evidences FactibilidadEvidencia[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("factibilidad_fichas")
+}
+
+model FactibilidadCriterio {
+  id            String            @id @default(uuid())
+  fichaId       String            @map("ficha_id")
+  ficha         FactibilidadFicha @relation(fields: [fichaId], references: [id], onDelete: Cascade)
+  categoria     CriterioCategoria
+  criterionName String            @map("criterion_name")
+  score         Int // 0-100
+  sortOrder     Int               @default(0) @map("sort_order")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  @@index([fichaId, categoria])
+  @@map("factibilidad_criterios")
+}
+
+model FactibilidadRiesgo {
+  id          String             @id @default(uuid())
+  fichaId     String             @map("ficha_id")
+  ficha       FactibilidadFicha  @relation(fields: [fichaId], references: [id], onDelete: Cascade)
+  risk        String
+  probability RiesgoProbabilidad
+  impact      RiesgoImpacto
+  level       RiesgoNivel
+  mitigation  String?
+  responsible String?
+  sortOrder   Int                @default(0) @map("sort_order")
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  @@index([fichaId])
+  @@map("factibilidad_riesgos")
+}
+
+model FactibilidadEvidencia {
+  id          String            @id @default(uuid())
+  fichaId     String            @map("ficha_id")
+  ficha       FactibilidadFicha @relation(fields: [fichaId], references: [id], onDelete: Cascade)
+  uploadId    String            @unique @map("upload_id")
+  upload      Upload            @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  description String?
+  sortOrder   Int               @default(0) @map("sort_order")
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  @@index([fichaId])
+  @@map("factibilidad_evidencias")
 }
 
 // ===================== Conocimiento =====================
@@ -532,18 +797,18 @@ enum KnowledgeType {
 }
 
 model KnowledgeItem {
-  id          String        @id @default(uuid())
-  title       String
-  type        KnowledgeType
-  folder      String?
-  fileUrl     String?       @map("file_url")
-  linkUrl     String?       @map("link_url")
-  sizeBytes   Int?          @map("size_bytes")
-  authorName  String?       @map("author_name")
-  downloads   Int           @default(0)
-  isPublic    Boolean       @default(false) @map("is_public")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id         String        @id @default(uuid())
+  title      String
+  type       KnowledgeType
+  folder     String?
+  fileUrl    String?       @map("file_url")
+  linkUrl    String?       @map("link_url")
+  sizeBytes  Int?          @map("size_bytes")
+  authorName String?       @map("author_name")
+  downloads  Int           @default(0)
+  isPublic   Boolean       @default(false) @map("is_public")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
 
   @@map("knowledge_items")
 }
@@ -560,10 +825,10 @@ enum CommunicationStatus {
 model Communication {
   id          String              @id @default(uuid())
   title       String
-  channel     String              // e.g. "Email · Intranet"
+  channel     String // e.g. "Email · Intranet"
   status      CommunicationStatus @default(EN_DISENO)
   scheduledAt DateTime?           @map("scheduled_at")
-  metrics     Json?               // lecturas, apertura, alcance, etc.
+  metrics     Json? // lecturas, apertura, alcance, etc.
   createdAt   DateTime            @default(now()) @map("created_at")
   updatedAt   DateTime            @updatedAt @map("updated_at")
 
@@ -582,10 +847,13 @@ model Upload {
   uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime @default(now()) @map("created_at")
 
-  ideaFicha    Idea?
-  aboutMemberPhoto  AboutMember?
-  aboutDocumentFile AboutDocument?
+  ideaFicha             Idea?
+  aboutMemberPhoto      AboutMember?
+  aboutDocumentFile     AboutDocument?
   publicContentDocument PublicContent?
+  minuteDocument        Minute?
+  taskAttachment        ProjectTaskAttachment?
+  factibilidadEvidencia FactibilidadEvidencia?
 
   @@map("uploads")
 }
@@ -596,7 +864,7 @@ model AuditLog {
   id         String   @id @default(uuid())
   userId     String?  @map("user_id")
   user       User?    @relation(fields: [userId], references: [id])
-  action     String   // e.g. "auth.login", "public_content.publish"
+  action     String // e.g. "auth.login", "public_content.publish"
   entityType String?  @map("entity_type")
   entityId   String?  @map("entity_id")
   metadata   Json?

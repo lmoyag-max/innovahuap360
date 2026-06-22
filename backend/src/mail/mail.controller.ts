@@ -4,6 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import { IsEmail } from 'class-validator';
 import type { Request } from 'express';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireModule } from '../common/decorators/module.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.interface';
 import { AuditService } from '../audit/audit.service';
@@ -24,6 +25,7 @@ export class MailController {
 
   @Get('health')
   @RequirePermissions('settings.manage')
+  @RequireModule('mail')
   async health() {
     const config = this.mailService.getPublicConfig();
     const connection = await this.mailService.testSmtpConnection();
@@ -33,6 +35,7 @@ export class MailController {
   @Post('test')
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermissions('settings.manage')
+  @RequireModule('mail')
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   async test(@Body() dto: TestMailDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     await this.mailService.sendMail(

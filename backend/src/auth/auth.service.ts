@@ -39,6 +39,10 @@ export class AuthService {
     return user.role.permissions.map((rp) => rp.permission.key);
   }
 
+  private buildModuleKeys(user: UserWithRole): string[] {
+    return user.role.moduleAccess.map((rm) => rm.module.key);
+  }
+
   private signAccessToken(user: UserWithRole): string {
     const payload: AuthenticatedUser = {
       sub: user.id,
@@ -46,6 +50,7 @@ export class AuthService {
       fullName: user.fullName,
       roleKey: user.role.key,
       permissions: this.buildPermissions(user),
+      moduleKeys: this.buildModuleKeys(user),
     };
     const jwt = this.config.get('jwt', { infer: true });
     return this.jwtService.sign(payload, { secret: jwt.accessSecret, expiresIn: jwt.accessTtl });
@@ -78,6 +83,7 @@ export class AuthService {
       mustChangePass: user.mustChangePass,
       role: { key: user.role.key, name: user.role.name },
       permissions: this.buildPermissions(user),
+      moduleKeys: this.buildModuleKeys(user),
     };
   }
 

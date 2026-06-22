@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { IsDefined } from 'class-validator';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireModule } from '../common/decorators/module.decorator';
 import { SettingsService } from './settings.service';
 
 class SetSettingDto {
@@ -12,6 +13,7 @@ class SetSettingDto {
 @ApiTags('settings')
 @Controller('admin/settings')
 @RequirePermissions('settings.manage')
+@RequireModule('settings')
 export class SettingsController {
   constructor(private readonly service: SettingsService) {}
 

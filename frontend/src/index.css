@@ -28,6 +28,9 @@
   --green-50: #e7f6ee; --green-100: #c6ebd6; --green-500: #1f8a5b; --green-600: #18724a;
   --amber-50: #fdf3e3; --amber-500: #c77d18; --amber-600: #a4640f;
   --violet-50: #f1edfd; --violet-500: #6d49d6; --violet-600: #5a3ab6;
+  /* Rojo de estado fijo (atrasado/cancelado): no usar --accent aquí porque
+     --accent cambia de rojo a azul según el tema (data-accent="blue"). */
+  --red-50: #fdecec; --red-500: #d6332f; --red-600: #b22622;
 
   /* Acento de marca HUAP — rojo institucional */
   --accent: #ed1d25;

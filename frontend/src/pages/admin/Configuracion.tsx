@@ -20,14 +20,16 @@ export default function Configuracion() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-settings'] }),
   })
 
-  const knownKeys = ['executive_kpis', 'executive_impact', 'executive_strategic_lines']
+  const knownKeys = ['executive_kpis', 'executive_impact', 'executive_strategic_lines', 'public_home_progress_pct', 'public_home_beneficiaries']
+  const numericKeys = new Set(['public_home_progress_pct', 'public_home_beneficiaries'])
   const existingKeys = new Set(settings?.map((s) => s.key))
   const allKeys = [...new Set([...knownKeys, ...(settings?.map((s) => s.key) ?? [])])]
 
   const valueFor = (key: string) => {
     if (draft[key] !== undefined) return draft[key]
     const found = settings?.find((s) => s.key === key)
-    return found ? JSON.stringify(found.value, null, 2) : '[]'
+    if (found) return JSON.stringify(found.value, null, 2)
+    return numericKeys.has(key) ? 'null' : '[]'
   }
 
   const handleSave = (key: string) => {
@@ -51,6 +53,11 @@ export default function Configuracion() {
         <code className="font-mono text-[11px]">{'[{"l":"Clínico","pct":78,"color":"var(--accent)"}]'}</code>) y{' '}
         <code className="font-mono">executive_strategic_lines</code> (ej.{' '}
         <code className="font-mono text-[11px]">{'[{"l":"Impacto institucional","v":"Alto","pct":84,"color":"var(--green-500)"}]'}</code>).
+        <br />
+        El <strong>Inicio público</strong> usa además <code className="font-mono">public_home_progress_pct</code> (número 0-100, ej.{' '}
+        <code className="font-mono text-[11px]">72</code>) y <code className="font-mono">public_home_beneficiaries</code> (número, ej.{' '}
+        <code className="font-mono text-[11px]">82400</code>) para el bloque "Impacto de innovación" — son estimaciones de criterio de
+        Dirección, no se calculan automáticamente; si quedan en <code className="font-mono">null</code> simplemente no se muestran.
       </p>
 
       {isLoading && <p className="text-[13px] text-muted">Cargando…</p>}

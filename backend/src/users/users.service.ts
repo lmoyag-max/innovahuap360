@@ -58,18 +58,32 @@ export class UsersService {
     return user;
   }
 
-  /** Uso interno de auth: incluye el hash de contraseña y los permisos del rol. */
+  /** Uso interno de auth: incluye el hash de contraseña, permisos y módulos habilitados del rol. */
   findByEmailWithAuth(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
-      include: { role: { include: { permissions: { include: { permission: true } } } } },
+      include: {
+        role: {
+          include: {
+            permissions: { include: { permission: true } },
+            moduleAccess: { include: { module: true } },
+          },
+        },
+      },
     });
   }
 
   findByIdWithAuth(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
-      include: { role: { include: { permissions: { include: { permission: true } } } } },
+      include: {
+        role: {
+          include: {
+            permissions: { include: { permission: true } },
+            moduleAccess: { include: { module: true } },
+          },
+        },
+      },
     });
   }
 

@@ -11,8 +11,8 @@ export interface Project {
   bar: string
 }
 
-/** Tarjeta de proyecto destacado (portafolio público e inicio). */
-export function ProjectCard({ project, to = '/portafolio' }: { project: Project; to?: string }) {
+/** Tarjeta de proyecto destacado (proyectos público e inicio). */
+export function ProjectCard({ project, to = '/proyectos' }: { project: Project; to?: string }) {
   return (
     <Link
       to={to}

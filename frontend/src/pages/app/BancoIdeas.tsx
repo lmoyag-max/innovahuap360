@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRight, Download, Lightbulb, Search, Inbox, ScanSearch, CheckCircle2, XCircle,
@@ -40,6 +41,7 @@ interface IdeaDetail extends IdeaRow {
   jefaturaApproval: boolean
   triageNote: string | null
   fichaUpload: { id: string; originalName: string; sizeBytes?: number }
+  resultingProjectId: string | null
   comments: Comment[]
   statusHistory: StatusHistoryEntry[]
 }
@@ -230,7 +232,7 @@ export default function BancoIdeas() {
       </div>
       <p className="text-[13px] text-muted mt-1.5 mb-5 max-w-[680px]">
         Ideas postuladas por la comunidad a través del portal público (<code className="font-mono">/postula</code>), con ficha técnica
-        adjunta. El Comité revisa, comenta, decide y puede convertir las aprobadas en un proyecto formal del portafolio.
+        adjunta. El Comité revisa, comenta, decide y puede convertir las aprobadas en un proyecto formal en Proyectos.
       </p>
 
       {/* KPIs */}
@@ -468,6 +470,18 @@ export default function BancoIdeas() {
                     Convertir en proyecto <ArrowRight size={13} />
                   </button>
                 )}
+              </div>
+            )}
+
+            {detail.resultingProjectId && (detail.status === 'EN_EJECUCION' || detail.status === 'CERRADA') && (
+              <div className="mb-3">
+                <Link
+                  to={`/app/proyectos/${detail.resultingProjectId}`}
+                  className="text-[12px] font-bold px-3 py-1.5 rounded-md text-white inline-flex items-center gap-1.5 transition-transform hover:-translate-y-0.5"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  Ver proyecto en Proyectos <ArrowRight size={13} />
+                </Link>
               </div>
             )}
 

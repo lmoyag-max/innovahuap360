@@ -28,10 +28,10 @@ const CATEGORY_COLOR: Record<string, string> = {
 }
 const DEFAULT_COLOR = 'var(--slate-500)'
 
-export default function PortafolioPublico() {
+export default function ProyectosPublico() {
   const [active, setActive] = useState('Todos')
   const { data, isLoading, isError } = useQuery<PortfolioItem[]>({
-    queryKey: ['public-portafolio'],
+    queryKey: ['public-proyectos'],
     queryFn: async () => (await api.get('/public-content', { params: { section: 'PORTAFOLIO' } })).data,
     retry: 1,
   })
@@ -57,7 +57,7 @@ export default function PortafolioPublico() {
   return (
     <div className="max-w-container mx-auto px-4 sm:px-8 py-10 sm:py-12 animate-viewin">
       <PageHeader
-        eyebrow="PORTAFOLIO PÚBLICO"
+        eyebrow="PROYECTOS"
         title="Proyectos de innovación en marcha"
         intro="Explora las iniciativas autorizadas públicamente, organizadas por su ámbito de impacto."
       />

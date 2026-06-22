@@ -13,6 +13,9 @@ const PERMISSIONS = [
   // o publicar/despublicar (ver public-content.controller.ts).
   'public_content.manage', 'public_content.publish', 'public_content.delete',
   'projects.read', 'projects.manage',
+  // projects.tasks.delete separado de projects.manage: solo admin/super_admin
+  // pueden eliminar hitos/tareas de la Carta Gantt, igual patrón que ideas.delete.
+  'projects.tasks.delete',
   'minutes.read', 'minutes.manage',
   'knowledge.read', 'knowledge.manage',
   'communications.read', 'communications.manage',
@@ -25,6 +28,9 @@ const PERMISSIONS = [
   // eliminar/restaurar/destacar ideas, igual que public_content.delete.
   'ideas.read', 'ideas.manage', 'ideas.delete',
   'units.read', 'units.manage',
+  // factibilidad.delete separado de projects.manage: solo admin/super_admin pueden
+  // eliminar/restaurar fichas y evidencias de Factibilidad, igual patrón que ideas.delete.
+  'factibilidad.delete',
 ];
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -55,6 +61,29 @@ const ROLE_NAMES: Record<string, string> = {
   lector: 'Lector',
 };
 
+// Catálogo de módulos de navegación (capa "Acceso a Módulos", independiente
+// de Permission/RolePermission). Mismo orden y agrupación que appNav en el
+// frontend (frontend/src/lib/nav.ts).
+const MODULES: { key: string; name: string; groupKey: string; groupLabel: string; sortOrder: number }[] = [
+  { key: 'dashboard', name: 'Dashboard General', groupKey: 'gestion', groupLabel: 'Gestión', sortOrder: 1 },
+  { key: 'ideas', name: 'Banco de Ideas', groupKey: 'gestion', groupLabel: 'Gestión', sortOrder: 2 },
+  { key: 'projects', name: 'Proyectos', groupKey: 'gestion', groupLabel: 'Gestión', sortOrder: 3 },
+  { key: 'minutes', name: 'Actas', groupKey: 'gestion', groupLabel: 'Gestión', sortOrder: 4 },
+  { key: 'factibilidad', name: 'Factibilidad', groupKey: 'gestion', groupLabel: 'Gestión', sortOrder: 5 },
+  { key: 'gantt', name: 'Carta Gantt', groupKey: 'gestion', groupLabel: 'Gestión', sortOrder: 6 },
+  { key: 'knowledge', name: 'Conocimiento', groupKey: 'conocimiento', groupLabel: 'Conocimiento', sortOrder: 7 },
+  { key: 'communications', name: 'Comunicaciones', groupKey: 'conocimiento', groupLabel: 'Conocimiento', sortOrder: 8 },
+  { key: 'innovaia', name: 'InnovaIA', groupKey: 'inteligencia', groupLabel: 'Inteligencia', sortOrder: 9 },
+  { key: 'executive', name: 'Dashboard Ejecutivo', groupKey: 'inteligencia', groupLabel: 'Inteligencia', sortOrder: 10 },
+  { key: 'public_content', name: 'Contenido Público', groupKey: 'administracion', groupLabel: 'Administración', sortOrder: 11 },
+  { key: 'users', name: 'Usuarios', groupKey: 'administracion', groupLabel: 'Administración', sortOrder: 12 },
+  { key: 'units', name: 'Unidades y Servicios', groupKey: 'administracion', groupLabel: 'Administración', sortOrder: 13 },
+  { key: 'roles', name: 'Roles', groupKey: 'administracion', groupLabel: 'Administración', sortOrder: 14 },
+  { key: 'settings', name: 'Configuración', groupKey: 'administracion', groupLabel: 'Administración', sortOrder: 15 },
+  { key: 'mail', name: 'Correo', groupKey: 'administracion', groupLabel: 'Administración', sortOrder: 16 },
+  { key: 'audit', name: 'Auditoría', groupKey: 'administracion', groupLabel: 'Administración', sortOrder: 17 },
+];
+
 async function main() {
   // Limpia permisos obsoletos (ej. el antiguo "content.manage", reemplazado
   // por public_content.manage/publish/delete) para que no queden huérfanos.
@@ -70,6 +99,30 @@ async function main() {
     await prisma.rolePermission.createMany({
       data: permissions.map((p) => ({ roleId: role.id, permissionId: p.id })),
     });
+  }
+
+  // Catálogo de módulos: se actualiza en cada seed (metadata, no es elección
+  // del administrador). La asignación rol↔módulo NO se resetea si el rol ya
+  // tiene alguna fila: eso es configuración editable desde Roles → Acceso a
+  // Módulos y un reseed nunca debe pisarla. Solo se siembra "todo habilitado"
+  // para roles que todavía no tienen ninguna asignación (estado inicial no
+  // disruptivo: el día 0 cada rol ve exactamente lo mismo que ya veía).
+  for (const m of MODULES) {
+    await prisma.module.upsert({
+      where: { key: m.key },
+      create: m,
+      update: { name: m.name, groupKey: m.groupKey, groupLabel: m.groupLabel, sortOrder: m.sortOrder },
+    });
+  }
+  const allModules = await prisma.module.findMany();
+  for (const key of Object.keys(ROLE_NAMES)) {
+    const role = await prisma.role.findUniqueOrThrow({ where: { key } });
+    const existingCount = await prisma.roleModule.count({ where: { roleId: role.id } });
+    if (existingCount === 0) {
+      await prisma.roleModule.createMany({
+        data: allModules.map((m) => ({ roleId: role.id, moduleId: m.id })),
+      });
+    }
   }
 
   const uniqueUnitNames = [...new Set(HUAP_UNITS.map((n) => n.trim()).filter(Boolean))];

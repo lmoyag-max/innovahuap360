@@ -81,3 +81,9 @@ export async function downloadUpload(uploadId: string, filename: string) {
   link.click()
   URL.revokeObjectURL(url)
 }
+
+/** Igual que downloadUpload pero retorna la blob URL para embeber el archivo (ej. visor de PDF en un modal). Quien la use debe revocarla con URL.revokeObjectURL al desmontar. */
+export async function previewUpload(uploadId: string): Promise<string> {
+  const response = await api.get(`/uploads/${uploadId}/download`, { responseType: 'blob' })
+  return URL.createObjectURL(response.data as Blob)
+}

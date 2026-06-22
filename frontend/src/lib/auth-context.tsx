@@ -10,6 +10,7 @@ export interface AuthUser {
   mustChangePass: boolean
   role: { key: string; name: string }
   permissions: string[]
+  moduleKeys: string[]
 }
 
 interface AuthContextValue {
@@ -18,6 +19,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   hasPermission: (permission: string) => boolean
+  hasModule: (moduleKey: string) => boolean
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -54,9 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const hasPermission = useCallback((permission: string) => user?.permissions.includes(permission) ?? false, [user])
+  const hasModule = useCallback((moduleKey: string) => user?.moduleKeys.includes(moduleKey) ?? false, [user])
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, hasPermission }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, hasPermission, hasModule }}>{children}</AuthContext.Provider>
   )
 }
 

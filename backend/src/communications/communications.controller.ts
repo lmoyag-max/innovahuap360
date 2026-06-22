@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireModule } from '../common/decorators/module.decorator';
 import { CreateCommunicationDto } from './dto/create-communication.dto';
 import { UpdateCommunicationDto } from './dto/update-communication.dto';
 import { CommunicationsService } from './communications.service';
@@ -8,6 +9,7 @@ import { CommunicationsService } from './communications.service';
 @ApiTags('communications')
 @Controller('communications')
 @RequirePermissions('communications.read')
+@RequireModule('communications')
 export class CommunicationsController {
   constructor(private readonly service: CommunicationsService) {}
 

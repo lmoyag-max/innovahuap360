@@ -9,7 +9,7 @@ export default function AppLayout() {
   const [open, setOpen] = useState(false)
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const { user, hasPermission, logout } = useAuth()
+  const { user, hasPermission, hasModule, logout } = useAuth()
   useEffect(() => setOpen(false), [pathname])
 
   // Migaja: título de la página activa.
@@ -20,7 +20,9 @@ export default function AppLayout() {
   const visibleGroups = appNav
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.permission || hasPermission(item.permission)),
+      items: group.items.filter(
+        (item) => (!item.permission || hasPermission(item.permission)) && (!item.moduleKey || hasModule(item.moduleKey)),
+      ),
     }))
     .filter((group) => group.items.length > 0)
 

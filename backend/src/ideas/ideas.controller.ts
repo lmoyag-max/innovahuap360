@@ -21,6 +21,7 @@ import type { Response } from 'express';
 import { IdeaStatus } from '@prisma/client';
 import { Public } from '../common/decorators/public.decorator';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireModule } from '../common/decorators/module.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.interface';
 import { CreatePublicIdeaDto } from './dto/create-public-idea.dto';
@@ -94,12 +95,14 @@ export class IdeasController {
 
   @Get('ideas/stats')
   @RequirePermissions('ideas.read')
+  @RequireModule('ideas')
   getStats() {
     return this.service.getStats();
   }
 
   @Get('ideas')
   @RequirePermissions('ideas.read')
+  @RequireModule('ideas')
   findAll(
     @Query('status') status?: IdeaStatus,
     @Query('unitId') unitId?: string,
@@ -111,36 +114,42 @@ export class IdeasController {
 
   @Get('ideas/:id')
   @RequirePermissions('ideas.read')
+  @RequireModule('ideas')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
   }
 
   @Patch('ideas/:id')
   @RequirePermissions('ideas.manage')
+  @RequireModule('ideas')
   update(@Param('id') id: string, @Body() dto: UpdateIdeaDto, @CurrentUser() user: AuthenticatedUser) {
     return this.service.update(id, dto, user.fullName);
   }
 
   @Post('ideas/:id/comments')
   @RequirePermissions('ideas.manage')
+  @RequireModule('ideas')
   addComment(@Param('id') id: string, @Body() dto: AddCommentDto, @CurrentUser() user: AuthenticatedUser) {
     return this.service.addComment(id, dto, user.sub, user.fullName);
   }
 
   @Post('ideas/:id/convert-to-project')
   @RequirePermissions('ideas.manage')
+  @RequireModule('ideas')
   convertToProject(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.service.convertToProject(id, user.fullName);
   }
 
   @Delete('ideas/:id')
   @RequirePermissions('ideas.delete')
+  @RequireModule('ideas')
   remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.service.softDelete(id, user.sub);
   }
 
   @Post('ideas/:id/restore')
   @RequirePermissions('ideas.delete')
+  @RequireModule('ideas')
   restore(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.service.restore(id, user.sub);
   }

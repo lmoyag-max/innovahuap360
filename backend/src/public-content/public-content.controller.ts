@@ -27,6 +27,7 @@ import { ContentSection } from '@prisma/client';
 import type { Request, Response } from 'express';
 import { Public } from '../common/decorators/public.decorator';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireModule } from '../common/decorators/module.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.interface';
 import { ALLOWED_MIME_TO_EXT, IMAGE_MIME_TO_EXT, MAX_FILE_SIZE_BYTES, UPLOADS_DIR } from '../uploads/uploads.controller';
@@ -124,12 +125,14 @@ export class PublicContentController {
 
   @Get('admin/public-content/quienes-somos')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   getAboutContent() {
     return this.service.getAboutContent();
   }
 
   @Put('admin/public-content/quienes-somos')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   updateAboutContent(@Body() dto: UpdateAboutContentDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.updateAboutContent(dto, this.actor(user, req));
   }
@@ -138,24 +141,28 @@ export class PublicContentController {
 
   @Get('admin/public-content/quienes-somos/members')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   listAboutMembers() {
     return this.service.listAboutMembers();
   }
 
   @Post('admin/public-content/quienes-somos/members')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   createAboutMember(@Body() dto: CreateAboutMemberDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.createAboutMember(dto, this.actor(user, req));
   }
 
   @Patch('admin/public-content/quienes-somos/members/:id')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   updateAboutMember(@Param('id') id: string, @Body() dto: UpdateAboutMemberDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.updateAboutMember(id, dto, this.actor(user, req));
   }
 
   @Delete('admin/public-content/quienes-somos/members/:id')
   @RequirePermissions('public_content.delete')
+  @RequireModule('public_content')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeAboutMember(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.removeAboutMember(id, this.actor(user, req));
@@ -163,6 +170,7 @@ export class PublicContentController {
 
   @Post('admin/public-content/quienes-somos/members/:id/photo')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   @UseInterceptors(imageUpload())
   setAboutMemberPhoto(
     @Param('id') id: string,
@@ -175,12 +183,14 @@ export class PublicContentController {
 
   @Delete('admin/public-content/quienes-somos/members/:id/photo')
   @RequirePermissions('public_content.delete')
+  @RequireModule('public_content')
   removeAboutMemberPhoto(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.removeAboutMemberPhoto(id, this.actor(user, req));
   }
 
   @Put('admin/public-content/quienes-somos/members/reorder')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   reorderAboutMembers(@Body() dto: ReorderDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.reorderAboutMembers(dto.items, this.actor(user, req));
   }
@@ -189,24 +199,28 @@ export class PublicContentController {
 
   @Get('admin/public-content/quienes-somos/axes')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   listAboutAxes() {
     return this.service.listAboutAxes();
   }
 
   @Post('admin/public-content/quienes-somos/axes')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   createAboutAxis(@Body() dto: CreateAboutAxisDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.createAboutAxis(dto, this.actor(user, req));
   }
 
   @Patch('admin/public-content/quienes-somos/axes/:id')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   updateAboutAxis(@Param('id') id: string, @Body() dto: UpdateAboutAxisDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.updateAboutAxis(id, dto, this.actor(user, req));
   }
 
   @Delete('admin/public-content/quienes-somos/axes/:id')
   @RequirePermissions('public_content.delete')
+  @RequireModule('public_content')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeAboutAxis(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.removeAboutAxis(id, this.actor(user, req));
@@ -214,6 +228,7 @@ export class PublicContentController {
 
   @Put('admin/public-content/quienes-somos/axes/reorder')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   reorderAboutAxes(@Body() dto: ReorderDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.reorderAboutAxes(dto.items, this.actor(user, req));
   }
@@ -222,24 +237,28 @@ export class PublicContentController {
 
   @Get('admin/public-content/quienes-somos/objectives')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   listAboutObjectives() {
     return this.service.listAboutObjectives();
   }
 
   @Post('admin/public-content/quienes-somos/objectives')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   createAboutObjective(@Body() dto: CreateAboutObjectiveDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.createAboutObjective(dto, this.actor(user, req));
   }
 
   @Patch('admin/public-content/quienes-somos/objectives/:id')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   updateAboutObjective(@Param('id') id: string, @Body() dto: UpdateAboutObjectiveDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.updateAboutObjective(id, dto, this.actor(user, req));
   }
 
   @Delete('admin/public-content/quienes-somos/objectives/:id')
   @RequirePermissions('public_content.delete')
+  @RequireModule('public_content')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeAboutObjective(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.removeAboutObjective(id, this.actor(user, req));
@@ -247,6 +266,7 @@ export class PublicContentController {
 
   @Put('admin/public-content/quienes-somos/objectives/reorder')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   reorderAboutObjectives(@Body() dto: ReorderDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.reorderAboutObjectives(dto.items, this.actor(user, req));
   }
@@ -255,24 +275,28 @@ export class PublicContentController {
 
   @Get('admin/public-content/quienes-somos/values')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   listAboutValues() {
     return this.service.listAboutValues();
   }
 
   @Post('admin/public-content/quienes-somos/values')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   createAboutValue(@Body() dto: CreateAboutValueDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.createAboutValue(dto, this.actor(user, req));
   }
 
   @Patch('admin/public-content/quienes-somos/values/:id')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   updateAboutValue(@Param('id') id: string, @Body() dto: UpdateAboutValueDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.updateAboutValue(id, dto, this.actor(user, req));
   }
 
   @Delete('admin/public-content/quienes-somos/values/:id')
   @RequirePermissions('public_content.delete')
+  @RequireModule('public_content')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeAboutValue(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.removeAboutValue(id, this.actor(user, req));
@@ -280,6 +304,7 @@ export class PublicContentController {
 
   @Put('admin/public-content/quienes-somos/values/reorder')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   reorderAboutValues(@Body() dto: ReorderDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.reorderAboutValues(dto.items, this.actor(user, req));
   }
@@ -288,12 +313,14 @@ export class PublicContentController {
 
   @Get('admin/public-content/quienes-somos/documents')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   listAboutDocuments() {
     return this.service.listAboutDocuments();
   }
 
   @Post('admin/public-content/quienes-somos/documents')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   @UseInterceptors(documentUpload())
   createAboutDocument(
     @Body() dto: CreateAboutDocumentDto,
@@ -306,12 +333,14 @@ export class PublicContentController {
 
   @Patch('admin/public-content/quienes-somos/documents/:id')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   updateAboutDocument(@Param('id') id: string, @Body() dto: UpdateAboutDocumentDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.updateAboutDocument(id, dto, this.actor(user, req));
   }
 
   @Delete('admin/public-content/quienes-somos/documents/:id')
   @RequirePermissions('public_content.delete')
+  @RequireModule('public_content')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeAboutDocument(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.removeAboutDocument(id, this.actor(user, req));
@@ -319,6 +348,7 @@ export class PublicContentController {
 
   @Put('admin/public-content/quienes-somos/documents/reorder')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   reorderAboutDocuments(@Body() dto: ReorderDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.reorderAboutDocuments(dto.items, this.actor(user, req));
   }
@@ -328,12 +358,14 @@ export class PublicContentController {
 
   @Get('admin/public-content/politica')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   getPoliticaContent() {
     return this.service.getPoliticaContent();
   }
 
   @Put('admin/public-content/politica')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   updatePoliticaContent(@Body() dto: UpdatePoliticaContentDto, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.updatePoliticaContent(dto, this.actor(user, req));
   }
@@ -346,6 +378,7 @@ export class PublicContentController {
 
   @Get('admin/public-content/portafolio/proyectos')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   listPortfolioVisibility() {
     return this.service.listPortfolioVisibility();
   }
@@ -354,30 +387,35 @@ export class PublicContentController {
 
   @Get('admin/public-content')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   findAllAdmin(@Query('section') section?: ContentSection) {
     return this.service.findAllAdmin(section);
   }
 
   @Get('admin/public-content/:id')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   findOneAdmin(@Param('id') id: string) {
     return this.service.findOneAdmin(id);
   }
 
   @Post('admin/public-content')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   create(@Body() dto: CreateContentDto) {
     return this.service.create(dto);
   }
 
   @Patch('admin/public-content/:id')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   update(@Param('id') id: string, @Body() dto: UpdateContentDto) {
     return this.service.update(id, dto);
   }
 
   @Delete('admin/public-content/:id')
   @RequirePermissions('public_content.delete')
+  @RequireModule('public_content')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {
     return this.service.remove(id);
@@ -385,18 +423,21 @@ export class PublicContentController {
 
   @Patch('admin/public-content/:id/published')
   @RequirePermissions('public_content.publish')
+  @RequireModule('public_content')
   setPublished(@Param('id') id: string, @Body() dto: SetPublishedDto) {
     return this.service.setPublished(id, dto.isPublished);
   }
 
   @Patch('admin/public-content/:id/featured')
   @RequirePermissions('public_content.publish')
+  @RequireModule('public_content')
   setFeatured(@Param('id') id: string, @Body() dto: SetFeaturedDto) {
     return this.service.setFeatured(id, dto.isFeatured);
   }
 
   @Post('admin/public-content/:id/document')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   @UseInterceptors(documentUpload())
   attachContentDocument(
     @Param('id') id: string,
@@ -409,12 +450,14 @@ export class PublicContentController {
 
   @Delete('admin/public-content/:id/document')
   @RequirePermissions('public_content.delete')
+  @RequireModule('public_content')
   removeContentDocument(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
     return this.service.removeContentDocument(id, this.actor(user, req));
   }
 
   @Put('admin/public-content/reorder')
   @RequirePermissions('public_content.manage')
+  @RequireModule('public_content')
   reorder(@Body() dto: ReorderDto) {
     return this.service.reorder(dto.items);
   }
