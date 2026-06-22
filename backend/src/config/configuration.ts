@@ -24,6 +24,10 @@ export interface AppConfig {
     provider: string;
     apiKey: string | null;
   };
+  gemini: {
+    apiKey: string | null;
+    model: string;
+  };
   swaggerEnabled: boolean;
 }
 
@@ -65,6 +69,10 @@ export default (): AppConfig => ({
   innovaIa: {
     provider: process.env.INNOVAIA_PROVIDER ?? 'none',
     apiKey: process.env.INNOVAIA_API_KEY ?? null,
+  },
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY ?? null,
+    model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',
   },
   swaggerEnabled: process.env.NODE_ENV !== 'production',
 });

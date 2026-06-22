@@ -50,6 +50,8 @@ services:
       SMTP_SECURE: ${SMTP_SECURE:-false}
       INNOVAIA_PROVIDER: ${INNOVAIA_PROVIDER:-none}
       INNOVAIA_API_KEY: ${INNOVAIA_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@innovahuap.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       RUN_SEED: ${RUN_SEED:-true}

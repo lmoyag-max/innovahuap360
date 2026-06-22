@@ -1,5 +1,6 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ApiError, GoogleGenAI } from '@google/genai';
 import type { AppConfig } from '../config/configuration';
 
 /**
@@ -16,10 +17,14 @@ export const INNOVAIA_CAPABILITIES = [
   'Generar informe',
 ];
 
-const SYSTEM_PROMPT =
-  'Eres InnovaIA, asistente del Comité de Innovación del Hospital de Urgencia Asistencia ' +
-  'Pública (HUAP). Ayudas a redactar actas, fichas de proyecto, KPIs y resúmenes ejecutivos ' +
-  'en español, con un tono institucional y clínico-sanitario.';
+const SYSTEM_PROMPT = [
+  'Eres InnovaIA, asistente del Comité de Innovación del Hospital de Urgencia Asistencia Pública HUAP.',
+  'Tu función es apoyar ideas, proyectos, factibilidades, actas, comunicaciones, indicadores y gestión de innovación.',
+  'No inventes datos institucionales.',
+  'No entregues diagnósticos clínicos.',
+  'No proceses información sensible de pacientes.',
+  'Responde de forma clara, profesional y útil.',
+].join('\n');
 
 @Injectable()
 export class InnovaIaService {
@@ -33,8 +38,19 @@ export class InnovaIaService {
   }
 
   async ask(prompt: string): Promise<{ answer: string; provider: string }> {
-    const { provider, apiKey } = this.config.get('innovaIa', { infer: true });
+    const { provider } = this.config.get('innovaIa', { infer: true });
 
+    if (provider === 'gemini') {
+      const { apiKey, model } = this.config.get('gemini', { infer: true });
+      if (!apiKey) {
+        throw new ServiceUnavailableException(
+          'InnovaIA no está configurado en este entorno. Defina GEMINI_API_KEY.',
+        );
+      }
+      return { answer: await this.askGemini(prompt, apiKey, model), provider };
+    }
+
+    const { apiKey } = this.config.get('innovaIa', { infer: true });
     if (provider === 'none' || !apiKey) {
       throw new ServiceUnavailableException(
         'InnovaIA no está configurado en este entorno. Defina INNOVAIA_PROVIDER e INNOVAIA_API_KEY.',
@@ -71,5 +87,41 @@ export class InnovaIaService {
 
     const data = (await response.json()) as { content?: { type: string; text?: string }[] };
     return data.content?.find((c) => c.type === 'text')?.text ?? '';
+  }
+
+  private async askGemini(prompt: string, apiKey: string, model: string): Promise<string> {
+    const client = new GoogleGenAI({ apiKey });
+    try {
+      const response = await client.models.generateContent({
+        model,
+        contents: prompt,
+        config: { systemInstruction: SYSTEM_PROMPT },
+      });
+      return response.text ?? '';
+    } catch (error) {
+      if (error instanceof ApiError) {
+        this.logger.error(`Gemini API respondió ${error.status}: ${error.message}`);
+        if (error.status === 429) {
+          throw new ServiceUnavailableException(
+            'Se alcanzó el límite de uso del proveedor de IA por ahora. Intenta nuevamente en unos minutos.',
+          );
+        }
+        // La API de Gemini responde 400 INVALID_ARGUMENT (no 401/403) cuando
+        // la API Key no es válida, además de los códigos 401/403 estándar.
+        const isAuthError =
+          error.status === 401 ||
+          error.status === 403 ||
+          (error.status === 400 && /api key/i.test(error.message));
+        if (isAuthError) {
+          throw new ServiceUnavailableException(
+            'InnovaIA no pudo autenticarse con el proveedor de IA. Verifica la API Key configurada.',
+          );
+        }
+        throw new ServiceUnavailableException('InnovaIA no pudo procesar la solicitud en este momento');
+      }
+
+      this.logger.error(`Gemini: error de conexión — ${(error as Error)?.message}`);
+      throw new ServiceUnavailableException('No se pudo conectar con el proveedor de IA. Intenta nuevamente.');
+    }
   }
 }
