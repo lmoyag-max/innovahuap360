@@ -1,8 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+
+const ADMIN_ROLE_KEYS = ['admin', 'super_admin'];
 
 const SAFE_USER_SELECT = {
   id: true,
@@ -49,11 +51,15 @@ export class UsersService {
   }
 
   findAll() {
-    return this.prisma.user.findMany({ select: SAFE_USER_SELECT, orderBy: { fullName: 'asc' } });
+    return this.prisma.user.findMany({
+      where: { deletedAt: null },
+      select: SAFE_USER_SELECT,
+      orderBy: { fullName: 'asc' },
+    });
   }
 
   async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id }, select: SAFE_USER_SELECT });
+    const user = await this.prisma.user.findUnique({ where: { id, deletedAt: null }, select: SAFE_USER_SELECT });
     if (!user) throw new NotFoundException('Usuario no encontrado');
     return user;
   }
@@ -94,9 +100,43 @@ export class UsersService {
     return this.prisma.user.update({ where: { id }, data, select: SAFE_USER_SELECT });
   }
 
-  async setActive(id: string, isActive: boolean) {
+  /** Evita que un admin se desactive/elimine a sí mismo o deje el sistema sin ningún admin activo. */
+  private async assertCanDeactivate(id: string, currentUserId: string): Promise<void> {
+    if (id === currentUserId) {
+      throw new BadRequestException('No puedes desactivar ni eliminar tu propio usuario');
+    }
+    const target = await this.prisma.user.findUnique({ where: { id }, include: { role: true } });
+    if (!target || !ADMIN_ROLE_KEYS.includes(target.role.key)) return;
+
+    const otherActiveAdmins = await this.prisma.user.count({
+      where: {
+        id: { not: id },
+        isActive: true,
+        deletedAt: null,
+        role: { key: { in: ADMIN_ROLE_KEYS } },
+      },
+    });
+    if (otherActiveAdmins === 0) {
+      throw new BadRequestException('No puedes dejar el sistema sin ningún administrador activo');
+    }
+  }
+
+  async setActive(id: string, isActive: boolean, currentUserId: string) {
     await this.findOne(id);
+    if (!isActive) await this.assertCanDeactivate(id, currentUserId);
     return this.prisma.user.update({ where: { id }, data: { isActive }, select: SAFE_USER_SELECT });
+  }
+
+  /** Borrado lógico: preserva auditoría/cargas existentes (sin onDelete: Cascade desde
+   *  AuditLog/Upload) e impide el login igual que un usuario inactivo (auth.service.ts). */
+  async remove(id: string, currentUserId: string) {
+    await this.findOne(id);
+    await this.assertCanDeactivate(id, currentUserId);
+    return this.prisma.user.update({
+      where: { id },
+      data: { deletedAt: new Date(), isActive: false },
+      select: SAFE_USER_SELECT,
+    });
   }
 
   async resetPasswordByAdmin(id: string, newPassword: string) {

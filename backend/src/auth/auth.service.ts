@@ -22,9 +22,39 @@ export interface RequestMeta {
 
 type UserWithRole = NonNullable<Awaited<ReturnType<UsersService['findByEmailWithAuth']>>>;
 
+const FAILED_LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const FAILED_LOGIN_MAX_ATTEMPTS = 5;
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+
+  // Throttling por (email) además del @Throttle por IP en el controller:
+  // sin esto, un atacante puede repartir intentos contra la misma cuenta
+  // entre varias IPs para evadir el límite por IP. En memoria del proceso,
+  // suficiente porque el backend corre como una sola instancia.
+  private readonly failedLoginAttempts = new Map<string, number[]>();
+
+  private isEmailLocked(email: string): boolean {
+    const key = email.trim().toLowerCase();
+    const now = Date.now();
+    const attempts = (this.failedLoginAttempts.get(key) ?? []).filter(
+      (t) => now - t < FAILED_LOGIN_WINDOW_MS,
+    );
+    this.failedLoginAttempts.set(key, attempts);
+    return attempts.length >= FAILED_LOGIN_MAX_ATTEMPTS;
+  }
+
+  private recordFailedLogin(email: string): void {
+    const key = email.trim().toLowerCase();
+    const attempts = this.failedLoginAttempts.get(key) ?? [];
+    attempts.push(Date.now());
+    this.failedLoginAttempts.set(key, attempts);
+  }
+
+  private clearFailedLogins(email: string): void {
+    this.failedLoginAttempts.delete(email.trim().toLowerCase());
+  }
 
   constructor(
     private readonly usersService: UsersService,
@@ -96,8 +126,19 @@ export class AuthService {
   }
 
   async login(email: string, password: string, meta: RequestMeta) {
-    const user = await this.usersService.findByEmailWithAuth(email);
     const genericError = 'Credenciales inválidas';
+
+    if (this.isEmailLocked(email)) {
+      await this.auditService.log({
+        action: 'auth.login_blocked',
+        metadata: { email },
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+      throw new UnauthorizedException('Demasiados intentos fallidos para este correo. Intenta de nuevo en unos minutos.');
+    }
+
+    const user = await this.usersService.findByEmailWithAuth(email);
 
     // Comparación constante: si no existe el usuario, igual se calcula un hash
     // para no filtrar por temporización si el correo existe o no.
@@ -105,6 +146,7 @@ export class AuthService {
     const passwordOk = await argon2.verify(hashToCompare, password).catch(() => false);
 
     if (!user || !user.isActive || !passwordOk) {
+      this.recordFailedLogin(email);
       await this.auditService.log({
         action: 'auth.login_failed',
         metadata: { email },
@@ -114,6 +156,7 @@ export class AuthService {
       throw new UnauthorizedException(genericError);
     }
 
+    this.clearFailedLogins(email);
     const accessToken = this.signAccessToken(user);
     const refreshToken = await this.issueRefreshToken(user.id, meta);
     await this.usersService.touchLastLogin(user.id);

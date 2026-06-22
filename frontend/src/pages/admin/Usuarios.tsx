@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, X, Power, KeyRound } from 'lucide-react'
+import { Plus, X, Power, KeyRound, Pencil, Trash2 } from 'lucide-react'
 import { Eyebrow, Badge } from '../../components/ui'
+import { Modal } from '../../components/ui/Modal'
 import { api, apiErrorMessage } from '../../lib/api'
+import { useAuth } from '../../lib/auth-context'
 
 interface Role { id: string; key: string; name: string }
 interface UserRow {
@@ -18,18 +20,30 @@ interface UserRow {
   role: Role
 }
 
-const schema = z.object({
+const createSchema = z.object({
   email: z.string().email('Correo inválido'),
   password: z.string().min(8, 'Mínimo 8 caracteres'),
   fullName: z.string().min(3, 'Mínimo 3 caracteres'),
   roleId: z.string().min(1, 'Selecciona un rol'),
   position: z.string().optional(),
 })
-type FormValues = z.infer<typeof schema>
+type CreateValues = z.infer<typeof createSchema>
+
+const editSchema = z.object({
+  email: z.string().email('Correo inválido'),
+  fullName: z.string().min(3, 'Mínimo 3 caracteres'),
+  roleId: z.string().min(1, 'Selecciona un rol'),
+  position: z.string().optional(),
+})
+type EditValues = z.infer<typeof editSchema>
 
 export default function Usuarios() {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canDelete = hasPermission('users.delete')
   const [showForm, setShowForm] = useState(false)
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null)
+  const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null)
 
   const { data: users, isLoading } = useQuery<UserRow[]>({
     queryKey: ['admin-users'],
@@ -43,31 +57,79 @@ export default function Usuarios() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] })
 
   const createMutation = useMutation({
-    mutationFn: (values: FormValues) => api.post('/admin/users', values),
-    onSuccess: () => { invalidate(); setShowForm(false); reset() },
+    mutationFn: (values: CreateValues) => api.post('/admin/users', values),
+    onSuccess: () => {
+      invalidate()
+      setShowForm(false)
+      resetCreate()
+      setFeedback({ ok: true, message: 'Usuario creado correctamente.' })
+    },
   })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, values }: { id: string; values: EditValues }) => api.patch(`/admin/users/${id}`, values),
+    onSuccess: () => {
+      invalidate()
+      setEditingUser(null)
+      setFeedback({ ok: true, message: 'Usuario actualizado correctamente.' })
+    },
+    onError: (e) => setFeedback({ ok: false, message: apiErrorMessage(e) }),
+  })
+
   const toggleActive = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => api.patch(`/admin/users/${id}/active`, { isActive }),
-    onSuccess: invalidate,
+    onSuccess: (_data, vars) => {
+      invalidate()
+      setFeedback({ ok: true, message: vars.isActive ? 'Usuario activado.' : 'Usuario desactivado.' })
+    },
+    onError: (e) => setFeedback({ ok: false, message: apiErrorMessage(e) }),
   })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/admin/users/${id}`),
+    onSuccess: () => {
+      invalidate()
+      setFeedback({ ok: true, message: 'Usuario eliminado correctamente.' })
+    },
+    onError: (e) => setFeedback({ ok: false, message: apiErrorMessage(e) }),
+  })
+
   const resetPassword = useMutation({
     mutationFn: ({ id, newPassword }: { id: string; newPassword: string }) =>
       api.patch(`/admin/users/${id}/reset-password`, { newPassword }),
   })
 
   const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) })
+    register: registerCreate,
+    handleSubmit: handleSubmitCreate,
+    reset: resetCreate,
+    formState: { errors: createErrors },
+  } = useForm<CreateValues>({ resolver: zodResolver(createSchema) })
+
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    reset: resetEdit,
+    formState: { errors: editErrors },
+  } = useForm<EditValues>({ resolver: zodResolver(editSchema) })
+
+  const openEdit = (user: UserRow) => {
+    setEditingUser(user)
+    resetEdit({ email: user.email, fullName: user.fullName, roleId: user.role.id, position: user.position ?? '' })
+  }
+
+  const handleDelete = (user: UserRow) => {
+    if (confirm(`¿Eliminar al usuario «${user.fullName}» (${user.email})? Ya no podrá iniciar sesión. Esta acción no se puede deshacer.`)) {
+      deleteMutation.mutate(user.id)
+    }
+  }
 
   const handleResetPassword = (id: string) => {
     const newPassword = prompt('Nueva contraseña temporal (mín. 8 caracteres):')
     if (newPassword && newPassword.length >= 8) {
       resetPassword.mutate({ id, newPassword }, {
-        onSuccess: () => alert('Contraseña restablecida. El usuario deberá cambiarla al ingresar.'),
-        onError: (e) => alert(apiErrorMessage(e)),
+        onSuccess: () => setFeedback({ ok: true, message: 'Contraseña restablecida. El usuario deberá cambiarla al ingresar.' }),
+        onError: (e) => setFeedback({ ok: false, message: apiErrorMessage(e) }),
       })
     }
   }
@@ -84,36 +146,42 @@ export default function Usuarios() {
         </button>
       </div>
 
+      {feedback && (
+        <p className="text-[12.5px] mb-3" style={{ color: feedback.ok ? 'var(--green-600)' : 'var(--accent)' }}>
+          {feedback.message}
+        </p>
+      )}
+
       {showForm && (
         <div className="bg-card border border-line rounded-card p-5 mb-5">
           {createMutation.error && <p className="text-[12.5px] mb-3" style={{ color: 'var(--accent)' }}>{apiErrorMessage(createMutation.error)}</p>}
-          <form onSubmit={handleSubmit((v) => createMutation.mutate(v))} className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <form onSubmit={handleSubmitCreate((v) => createMutation.mutate(v))} className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-semibold text-body">Nombre completo</span>
-              <input {...register('fullName')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
-              {errors.fullName && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{errors.fullName.message}</span>}
+              <input {...registerCreate('fullName')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
+              {createErrors.fullName && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{createErrors.fullName.message}</span>}
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-semibold text-body">Correo institucional</span>
-              <input {...register('email')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
-              {errors.email && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{errors.email.message}</span>}
+              <input {...registerCreate('email')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
+              {createErrors.email && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{createErrors.email.message}</span>}
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-semibold text-body">Cargo</span>
-              <input {...register('position')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
+              <input {...registerCreate('position')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-semibold text-body">Rol</span>
-              <select {...register('roleId')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]">
+              <select {...registerCreate('roleId')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]">
                 <option value="">Selecciona…</option>
                 {roles?.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
-              {errors.roleId && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{errors.roleId.message}</span>}
+              {createErrors.roleId && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{createErrors.roleId.message}</span>}
             </label>
             <label className="flex flex-col gap-1.5 sm:col-span-2">
               <span className="text-[12px] font-semibold text-body">Contraseña temporal</span>
-              <input type="password" {...register('password')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
-              {errors.password && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{errors.password.message}</span>}
+              <input type="password" {...registerCreate('password')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
+              {createErrors.password && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{createErrors.password.message}</span>}
             </label>
             <div className="sm:col-span-2">
               <button type="submit" disabled={createMutation.isPending} className="h-10 px-4 rounded-md text-white font-semibold text-[13px] disabled:opacity-60" style={{ background: 'var(--accent)' }}>
@@ -133,7 +201,7 @@ export default function Usuarios() {
                 <th className="px-4 py-3 font-semibold">Usuario</th>
                 <th className="px-4 py-3 font-semibold">Rol</th>
                 <th className="px-4 py-3 font-semibold">Estado</th>
-                <th className="px-4 py-3 font-semibold w-[120px]">Acciones</th>
+                <th className="px-4 py-3 font-semibold w-[160px]">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -158,12 +226,20 @@ export default function Usuarios() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
+                      <button title="Editar" onClick={() => openEdit(u)} className="w-7 h-7 flex items-center justify-center rounded-md border border-line hover:border-[var(--accent)] text-body">
+                        <Pencil size={14} />
+                      </button>
                       <button title={u.isActive ? 'Desactivar' : 'Activar'} onClick={() => toggleActive.mutate({ id: u.id, isActive: !u.isActive })} className="w-7 h-7 flex items-center justify-center rounded-md border border-line hover:border-[var(--accent)] text-body">
                         <Power size={14} />
                       </button>
                       <button title="Restablecer contraseña" onClick={() => handleResetPassword(u.id)} className="w-7 h-7 flex items-center justify-center rounded-md border border-line hover:border-[var(--accent)] text-body">
                         <KeyRound size={14} />
                       </button>
+                      {canDelete && (
+                        <button title="Eliminar" onClick={() => handleDelete(u)} className="w-7 h-7 flex items-center justify-center rounded-md border border-line hover:border-[var(--accent)] text-body">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -172,6 +248,46 @@ export default function Usuarios() {
           </table>
         )}
       </div>
+
+      <Modal open={!!editingUser} onClose={() => setEditingUser(null)} title={`Editar «${editingUser?.fullName ?? ''}»`}>
+        {editingUser && (
+          <form
+            onSubmit={handleSubmitEdit((v) => updateMutation.mutate({ id: editingUser.id, values: v }))}
+            className="grid grid-cols-1 gap-3.5"
+          >
+            {updateMutation.error && <p className="text-[12.5px]" style={{ color: 'var(--accent)' }}>{apiErrorMessage(updateMutation.error)}</p>}
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-body">Nombre completo</span>
+              <input {...registerEdit('fullName')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
+              {editErrors.fullName && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{editErrors.fullName.message}</span>}
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-body">Correo institucional</span>
+              <input {...registerEdit('email')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
+              {editErrors.email && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{editErrors.email.message}</span>}
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-body">Cargo</span>
+              <input {...registerEdit('position')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]" />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-body">Rol</span>
+              <select {...registerEdit('roleId')} className="h-10 px-3 rounded-md border border-line bg-inset text-[13px]">
+                {roles?.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              {editErrors.roleId && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{editErrors.roleId.message}</span>}
+            </label>
+            <div className="flex items-center gap-2.5 justify-end mt-1">
+              <button type="button" onClick={() => setEditingUser(null)} className="h-10 px-4 rounded-md border border-line font-semibold text-[13px] text-body">
+                Cancelar
+              </button>
+              <button type="submit" disabled={updateMutation.isPending} className="h-10 px-4 rounded-md text-white font-semibold text-[13px] disabled:opacity-60" style={{ background: 'var(--accent)' }}>
+                {updateMutation.isPending ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -7,6 +7,9 @@ const prisma = new PrismaClient();
 
 const PERMISSIONS = [
   'users.read', 'users.manage',
+  // users.delete separado de users.manage: solo admin/super_admin pueden
+  // eliminar (borrado lógico) usuarios, igual patrón que ideas.delete.
+  'users.delete',
   'roles.read', 'roles.manage',
   // Contenido Público: separado en 3 permisos para poder restringir
   // eliminación a administradores sin afectar quién puede crear/editar

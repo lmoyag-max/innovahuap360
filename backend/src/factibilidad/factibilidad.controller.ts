@@ -169,11 +169,12 @@ export class FactibilidadController {
     return this.service.removeEvidencia(id);
   }
 
-  // Requiere sesión (guard global) pero ningún permiso adicional: conocer el
-  // id de la evidencia ya actúa como capability token para su descarga
-  // (mismo patrón que uploads.controller.ts).
+  // Mismo permiso que la lectura de fichas (projects.read): evita que la
+  // descarga quede más abierta que el listado donde se descubre el id de
+  // la evidencia. Hoy todos los roles con acceso al módulo ya tienen
+  // projects.read, así que esto no cambia el comportamiento de nadie.
   @Get('evidencias/:id/download')
-  @RequirePermissions()
+  @RequirePermissions('projects.read')
   @RequireModule('factibilidad')
   async download(@Param('id') id: string, @Res() res: Response) {
     const upload = await this.service.getEvidenciaForDownload(id);
