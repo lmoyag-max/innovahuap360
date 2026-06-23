@@ -7,6 +7,8 @@
   - [ ] `POSTGRES_PASSWORD` fuerte
   - [ ] `ADMIN_PASSWORD` definido explícitamente (o capturar la contraseña generada en
         `docker compose logs backend` en el primer arranque y cambiarla de inmediato)
+  - [ ] `SUPER_ADMIN_PASSWORD` definido explícitamente (mismo criterio que `ADMIN_PASSWORD` —
+        si se deja vacío, el seed genera una aleatoria y la imprime una sola vez en logs)
 - [ ] `NODE_ENV=production` (deshabilita Swagger y activa HSTS automáticamente)
 - [ ] `CORS_ORIGINS` y `FRONTEND_URL` apuntando al dominio público real
 - [ ] SMTP real configurado (`SMTP_HOST/PORT/USER/PASS/FROM`) — Mailhog es solo para desarrollo
@@ -34,6 +36,12 @@
 - [ ] Publicar contenido en `/app/admin/contenido-publico` y confirmar que aparece en el portal
       público correspondiente
 - [ ] Revisar `/app/admin/auditoria` y confirmar que se registran login, cambios de contraseña, etc.
+- [ ] Enviar una idea desde el Banco de Ideas público y confirmar que se crea automáticamente el
+      proyecto interno asociado
+- [ ] Subir un archivo (ficha de idea, foto de integrante, documento de contenido público) y
+      confirmar que se descarga correctamente
+- [ ] `docker compose restart` (o `down` + `up`) y confirmar que los datos creados en las pruebas
+      anteriores siguen presentes (persistencia de `postgres_data`/`backend_uploads`)
 
 ## Backups
 

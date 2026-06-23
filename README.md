@@ -100,6 +100,11 @@ npm run dev                   # http://localhost:5173
 - [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — Arquitectura del sistema, módulos y modelo de datos.
 - [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) — Controles OWASP implementados y estado de `npm audit`.
 - [`docs/CHECKLIST_PRODUCCION.md`](docs/CHECKLIST_PRODUCCION.md) — Checklist antes de desplegar a producción.
+- [`README_PREPROD.md`](README_PREPROD.md) — Guía operativa para Infraestructura: requisitos del
+  servidor, comandos de despliegue/backup/restore y checklist de validación post-despliegue.
+- [`docs/PLAN_RECUPERACION_DESASTRES.md`](docs/PLAN_RECUPERACION_DESASTRES.md) — Qué hacer ante
+  caída de contenedores, corrupción de la base de datos, migraciones fallidas o pérdida total
+  del servidor.
 - [`docs/CLAUDE_MASTER_PROMPT_INNOVAHUAP360.md`](docs/CLAUDE_MASTER_PROMPT_INNOVAHUAP360.md) — Especificación
   funcional original del proyecto.
 

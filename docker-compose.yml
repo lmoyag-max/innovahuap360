@@ -54,6 +54,8 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@innovahuap.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
       RUN_SEED: ${RUN_SEED:-true}
     volumes:
       - backend_uploads:/app/uploads

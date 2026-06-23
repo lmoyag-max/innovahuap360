@@ -12,3 +12,9 @@ dist-ssr
 
 # Tooling local (Claude Code)
 .claude/
+
+# Backups locales generados por scripts/preprod-backup-db.sh
+backups/
+
+# Borradores de correo internos (no son documentación del proyecto)
+EMAIL_DESPLIEGUE_ENZO.md

@@ -176,7 +176,7 @@ async function main() {
   const existingSuperAdmin = await prisma.user.findUnique({ where: { email: superAdminEmail } });
 
   if (!existingSuperAdmin) {
-    const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD ?? 'Cambiar123456!';
+    const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD ?? randomBytes(12).toString('base64url');
     const superAdminRole = await prisma.role.findUniqueOrThrow({ where: { key: 'super_admin' } });
 
     await prisma.user.create({
@@ -190,14 +190,16 @@ async function main() {
       },
     });
 
-    // eslint-disable-next-line no-console
-    console.log('\n=== Usuario super_admin creado ===');
-    // eslint-disable-next-line no-console
-    console.log(`Email:    ${superAdminEmail}`);
-    // eslint-disable-next-line no-console
-    console.log(`Password: ${superAdminPassword}  (cámbiela al iniciar sesión)`);
-    // eslint-disable-next-line no-console
-    console.log('===================================\n');
+    if (!process.env.SUPER_ADMIN_PASSWORD) {
+      // eslint-disable-next-line no-console
+      console.log('\n=== Usuario super_admin creado ===');
+      // eslint-disable-next-line no-console
+      console.log(`Email:    ${superAdminEmail}`);
+      // eslint-disable-next-line no-console
+      console.log(`Password: ${superAdminPassword}  (cámbiela al iniciar sesión)`);
+      // eslint-disable-next-line no-console
+      console.log('===================================\n');
+    }
   }
 
   // Página pública "Quiénes Somos": migra al modelo administrable el

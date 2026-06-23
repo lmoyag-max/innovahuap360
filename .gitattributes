@@ -1,0 +1,3 @@
+# Los scripts .sh corren en el host Docker (Linux) — forzar LF evita que un
+# checkout en Windows les inyecte CRLF y rompa el shebang (#!/bin/sh).
+*.sh text eol=lf
