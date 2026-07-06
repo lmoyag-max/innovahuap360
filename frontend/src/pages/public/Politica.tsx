@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { FileText, Download } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import { api } from '../../lib/api'
 import { politicaDocs } from '../../data/public'
+import { PdfPreviewModal } from '../../components/PdfPreviewModal'
 
 interface PoliticaItem {
   id: string
@@ -13,7 +15,7 @@ interface PoliticaItem {
 }
 interface PoliticaResponse {
   published: boolean
-  content: { title: string; excerpt: string | null; body: string | null; imageUrl: string | null } | null
+  content: { title: string; excerpt: string | null; body: string | null; imageUrl: string | null; documentUrl: string | null } | null
   items: PoliticaItem[]
 }
 
@@ -22,6 +24,8 @@ const FALLBACK_INTRO =
   'Biblioteca digital con la política, reglamentos, resoluciones y planes que rigen la innovación en el HUAP. Documentos abiertos a toda la comunidad.'
 
 export default function Politica() {
+  const [pdfOpen, setPdfOpen] = useState(false)
+
   const { data, isLoading, isError } = useQuery<PoliticaResponse>({
     queryKey: ['public-politica'],
     queryFn: async () => (await api.get('/public/politica')).data,
@@ -37,6 +41,7 @@ export default function Politica() {
     : data?.items ?? []
 
   const showDraftNotice = !isLoading && !isError && data && !data.published
+  const documentUrl = useFallback ? null : data?.content?.documentUrl ?? null
 
   return (
     <div className="max-w-container mx-auto px-4 sm:px-8 py-10 sm:py-12 animate-viewin">
@@ -46,6 +51,26 @@ export default function Politica() {
         <p className="mb-6 text-[13px] text-muted bg-inset border border-line rounded-card px-4 py-3">
           El contenido de esta página está siendo actualizado por el Comité.
         </p>
+      )}
+
+      {documentUrl && (
+        <div className="bg-card border border-line rounded-card p-[22px] flex items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3.5">
+            <span className="w-[42px] h-[42px] rounded-[11px] bg-sunken flex items-center justify-center shrink-0" style={{ color: 'var(--accent)' }}>
+              <FileText size={20} />
+            </span>
+            <div>
+              <div className="font-mono text-[10.5px] tracking-wider text-muted uppercase">Documento oficial</div>
+              <div className="text-[15px] font-bold text-ink">Política de Innovación en PDF</div>
+            </div>
+          </div>
+          <button
+            onClick={() => setPdfOpen(true)}
+            className="shrink-0 h-9 px-3.5 rounded-md border border-line bg-card text-ink font-semibold text-[13px] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            Ver Política de Innovación en PDF
+          </button>
+        </div>
       )}
 
       {body && <p className="text-[14.5px] text-body leading-relaxed whitespace-pre-line mb-8">{body}</p>}
@@ -90,6 +115,13 @@ export default function Politica() {
           ))}
         </div>
       )}
+
+      <PdfPreviewModal
+        open={pdfOpen}
+        onClose={() => setPdfOpen(false)}
+        title="Política de Innovación"
+        url={documentUrl ? `${api.defaults.baseURL}${documentUrl}/preview` : null}
+      />
     </div>
   )
 }

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Download, FileX, Upload } from 'lucide-react'
 import { api, apiErrorMessage } from '../../lib/api'
 import SectionItemsAdmin from './SectionItemsAdmin'
 
@@ -14,6 +15,14 @@ const schema = z.object({
   isPublished: z.boolean().optional(),
 })
 type FormValues = z.infer<typeof schema>
+
+interface PoliticaContent extends FormValues {
+  id: string
+  documentUploadId: string | null
+  documentUpload: { originalName: string } | null
+}
+
+const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024
 
 const TABS = [
   { key: 'content', label: 'Encabezado' },
@@ -50,7 +59,11 @@ export default function PoliticaAdmin() {
 
 function ContentForm() {
   const queryClient = useQueryClient()
-  const { data, isLoading } = useQuery<FormValues>({
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [pdfError, setPdfError] = useState<string | null>(null)
+  const [pdfSuccess, setPdfSuccess] = useState(false)
+
+  const { data, isLoading } = useQuery<PoliticaContent>({
     queryKey: ['admin-politica-content'],
     queryFn: async () => (await api.get('/admin/public-content/politica')).data,
   })
@@ -73,6 +86,51 @@ function ContentForm() {
       reset(res.data)
     },
   })
+
+  const invalidatePolitica = () => queryClient.invalidateQueries({ queryKey: ['admin-politica-content'] })
+
+  const uploadPdfMutation = useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return api.post(`/admin/public-content/${data!.id}/document`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    },
+    onSuccess: () => {
+      setPdfError(null)
+      setPdfSuccess(true)
+      invalidatePolitica()
+    },
+    onError: (err) => {
+      setPdfSuccess(false)
+      setPdfError(apiErrorMessage(err, 'No fue posible subir el documento PDF. Intente nuevamente.'))
+    },
+  })
+
+  const removePdfMutation = useMutation({
+    mutationFn: () => api.delete(`/admin/public-content/${data!.id}/document`),
+    onSuccess: () => {
+      setPdfSuccess(false)
+      setPdfError(null)
+      invalidatePolitica()
+    },
+  })
+
+  const handlePdfSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setPdfSuccess(false)
+    if (file.type !== 'application/pdf') {
+      setPdfError('Solo se permiten archivos en formato PDF.')
+      return
+    }
+    if (file.size > MAX_PDF_SIZE_BYTES) {
+      setPdfError('El archivo supera el tamaño máximo permitido.')
+      return
+    }
+    setPdfError(null)
+    uploadPdfMutation.mutate(file)
+  }
 
   if (isLoading) return <p className="text-[13px] text-muted">Cargando…</p>
 
@@ -100,6 +158,51 @@ function ContentForm() {
         <input type="checkbox" {...register('isPublished')} className="w-4 h-4" />
         <span className="text-[13px] text-body font-semibold">Publicado en /politica</span>
       </label>
+
+      <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <span className="text-[12px] font-semibold text-body">Documento PDF de Política</span>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={handlePdfSelect}
+        />
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadPdfMutation.isPending}
+            className="h-9 px-3 rounded-md border border-line bg-inset text-[12.5px] font-semibold text-body inline-flex items-center gap-1.5 disabled:opacity-60"
+          >
+            <Upload size={14} />
+            {uploadPdfMutation.isPending ? 'Subiendo…' : data?.documentUploadId ? 'Reemplazar PDF' : 'Subir PDF'}
+          </button>
+          {data?.documentUploadId && (
+            <>
+              <a
+                href={`${api.defaults.baseURL}/public/content/${data.id}/document`}
+                className="text-[12.5px] font-semibold inline-flex items-center gap-1"
+                style={{ color: 'var(--accent)' }}
+              >
+                <Download size={13} /> Ver PDF actual{data.documentUpload ? `: ${data.documentUpload.originalName}` : ''}
+              </a>
+              <button
+                type="button"
+                title="Quitar documento"
+                onClick={() => removePdfMutation.mutate()}
+                className="text-muted hover:text-ink"
+              >
+                <FileX size={15} />
+              </button>
+            </>
+          )}
+        </div>
+        <span className="text-[11px] text-muted">Solo archivos PDF, máximo 10 MB.</span>
+        {pdfError && <span className="text-[11px]" style={{ color: 'var(--accent)' }}>{pdfError}</span>}
+        {pdfSuccess && <span className="text-[11px]" style={{ color: 'var(--green-600)' }}>El documento PDF de Política fue guardado correctamente.</span>}
+      </div>
+
       <div className="sm:col-span-2">
         <button type="submit" disabled={mutation.isPending} className="h-10 px-4 rounded-md text-white font-semibold text-[13px] disabled:opacity-60" style={{ background: 'var(--accent)' }}>
           {mutation.isPending ? 'Guardando…' : 'Guardar'}

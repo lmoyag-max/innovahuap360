@@ -467,10 +467,14 @@ export class PublicContentService {
   // con los endpoints genéricos de items que ya existían.
 
   async getPoliticaContent() {
-    const existing = await this.prisma.publicContent.findUnique({ where: { slug: POLITICA_SLUG } });
+    const existing = await this.prisma.publicContent.findUnique({
+      where: { slug: POLITICA_SLUG },
+      include: { documentUpload: true },
+    });
     if (existing) return existing;
     return this.prisma.publicContent.create({
       data: { section: ContentSection.POLITICA, slug: POLITICA_SLUG, title: 'Política de Innovación', isPublished: false },
+      include: { documentUpload: true },
     });
   }
 
@@ -515,7 +519,13 @@ export class PublicContentService {
 
     return {
       published: true,
-      content: { title: content.title, excerpt: content.excerpt, body: content.body, imageUrl: content.imageUrl },
+      content: {
+        title: content.title,
+        excerpt: content.excerpt,
+        body: content.body,
+        imageUrl: content.imageUrl,
+        documentUrl: content.documentUploadId ? `/public/content/${content.id}/document` : null,
+      },
       items: items.map((i) => this.toPublicItem(i)),
     };
   }

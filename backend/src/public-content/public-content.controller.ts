@@ -509,4 +509,19 @@ export class PublicContentController {
     const upload = await this.service.getPublicContentDocumentFile(id);
     res.download(this.uploadsService.getFilePath(upload), upload.originalName);
   }
+
+  /** Misma fuente que el endpoint de descarga, pero sin Content-Disposition:
+   *  attachment — permite mostrar el PDF embebido en un <iframe> en vez de
+   *  forzar su descarga. El helmet global (main.ts) envía `frame-ancestors
+   *  'none'` en toda la API para prevenir clickjacking; esta respuesta en
+   *  particular SÍ debe poder embeberse (mismo origen) porque ese es su
+   *  único propósito, así que se sobreescribe solo aquí. */
+  @Public()
+  @Get('public/content/:id/document/preview')
+  async getPublicContentDocumentPreview(@Param('id') id: string, @Res() res: Response) {
+    const upload = await this.service.getPublicContentDocumentFile(id);
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+    res.type(upload.mimeType);
+    res.sendFile(this.uploadsService.getFilePath(upload));
+  }
 }
