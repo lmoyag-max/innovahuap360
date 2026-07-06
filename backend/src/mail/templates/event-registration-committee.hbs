@@ -1,0 +1,15 @@
+<div style="font-family: 'Hanken Grotesk', Arial, sans-serif; max-width: 520px; margin: auto;">
+  <h2 style="color:#ed1d25;margin:0 0 4px;">InnovaHUAP 360 — Eventos</h2>
+  <h3 style="color:#222;margin:0 0 12px;">Nueva inscripción a evento</h3>
+  <p><strong>{{fullName}}</strong> se inscribió en <strong>"{{eventTitle}}"</strong>.</p>
+  <table style="font-size:13px;color:#333;border-collapse:collapse;margin:14px 0;">
+    <tr><td style="padding:3px 8px 3px 0;color:#888;">RUT</td><td style="padding:3px 0;">{{rut}}</td></tr>
+    <tr><td style="padding:3px 8px 3px 0;color:#888;">Correo</td><td style="padding:3px 0;">{{email}}</td></tr>
+    <tr><td style="padding:3px 8px 3px 0;color:#888;">Teléfono</td><td style="padding:3px 0;">{{phone}}</td></tr>
+    <tr><td style="padding:3px 8px 3px 0;color:#888;">Servicio / unidad</td><td style="padding:3px 0;">{{unit}}</td></tr>
+    <tr><td style="padding:3px 8px 3px 0;color:#888;">Cargo</td><td style="padding:3px 0;">{{position}}</td></tr>
+    {{#if observation}}<tr><td style="padding:3px 8px 3px 0;color:#888;">Observación</td><td style="padding:3px 0;">{{observation}}</td></tr>{{/if}}
+    <tr><td style="padding:3px 8px 3px 0;color:#888;">Fecha de inscripción</td><td style="padding:3px 0;">{{fecha}}</td></tr>
+  </table>
+  <p style="color:#888;font-size:12px;margin-top:24px;">Comité de Innovación · HUAP · Posta Central</p>
+</div>

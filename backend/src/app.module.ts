@@ -28,6 +28,7 @@ import { InnovaIaModule } from './innovaia/innovaia.module';
 import { IdeasModule } from './ideas/ideas.module';
 import { UnitsModule } from './units/units.module';
 import { FactibilidadModule } from './factibilidad/factibilidad.module';
+import { EventRegistrationsModule } from './event-registrations/event-registrations.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { FactibilidadModule } from './factibilidad/factibilidad.module';
     IdeasModule,
     UnitsModule,
     FactibilidadModule,
+    EventRegistrationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

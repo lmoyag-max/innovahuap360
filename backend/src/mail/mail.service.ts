@@ -23,6 +23,18 @@ export interface IdeaCreatedVars {
   unitName: string;
 }
 
+export interface EventRegistrationVars {
+  fullName: string;
+  rut: string;
+  email: string;
+  phone: string;
+  unit: string;
+  position: string;
+  observation?: string | null;
+  eventTitle: string;
+  createdAt: Date;
+}
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -150,6 +162,17 @@ export class MailService {
   async sendGenericNotificationEmail(to: string | string[], subject: string, title: string, bodyHtml: string): Promise<void> {
     const html = this.render('generic-notification', { title, bodyHtml });
     await this.safeSend(to, subject, html, 'generic-notification');
+  }
+
+  async sendEventRegistrationCommitteeEmail(to: string[], vars: EventRegistrationVars): Promise<void> {
+    const fecha = new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' }).format(vars.createdAt);
+    const html = this.render('event-registration-committee', { ...vars, fecha });
+    await this.safeSend(to, 'Nueva inscripción a evento - InnovaHUAP 360', html, 'event-registration-committee');
+  }
+
+  async sendEventRegistrationApplicantEmail(to: string, vars: EventRegistrationVars): Promise<void> {
+    const html = this.render('event-registration-applicant', vars);
+    await this.safeSend(to, 'Confirmación de inscripción - InnovaHUAP 360', html, 'event-registration-applicant');
   }
 
   async testSmtpConnection(): Promise<{ ok: boolean; message: string }> {

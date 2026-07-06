@@ -185,8 +185,35 @@ model PublicContent {
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
+  eventRegistrations EventRegistration[]
+
   @@index([section, isPublished, sortOrder])
   @@map("public_content")
+}
+
+// ===================== Eventos — Inscripciones =====================
+// Registro de inscripciones al botón "Inscribirse" de la pestaña pública
+// Eventos. Independiente de PublicContent: si el evento se edita o se
+// despublica después, la inscripción conserva el título tal como estaba al
+// momento de inscribirse (eventTitle es una copia histórica, no una
+// referencia viva).
+model EventRegistration {
+  id          String         @id @default(uuid())
+  eventId     String?        @map("event_id")
+  event       PublicContent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  eventTitle  String         @map("event_title")
+  fullName    String         @map("full_name")
+  rut         String
+  email       String
+  phone       String
+  unit        String
+  position    String
+  observation String?
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@index([eventId])
+  @@map("event_registrations")
 }
 
 // ===================== "Quiénes Somos" — listas administrables =====================

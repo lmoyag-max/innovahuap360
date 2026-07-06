@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import PageHeader from '../../components/PageHeader'
 import { api } from '../../lib/api'
 import { eventos } from '../../data/public'
+import { EventRegistrationModal } from '../../components/events/EventRegistrationModal'
 
 interface EventoItem {
   id: string
@@ -29,6 +31,8 @@ function time(iso: string | null) {
 }
 
 export default function Eventos() {
+  const [selectedEvent, setSelectedEvent] = useState<{ id: string; title: string } | null>(null)
+
   const { data, isLoading, isError } = useQuery<EventoItem[]>({
     queryKey: ['public-eventos'],
     queryFn: async () => (await api.get('/public-content', { params: { section: 'EVENTOS' } })).data,
@@ -106,8 +110,19 @@ export default function Eventos() {
                 >
                   Inscribirse
                 </a>
+              ) : useFallback ? (
+                <button
+                  disabled
+                  title="Las inscripciones en línea estarán disponibles próximamente"
+                  className="shrink-0 h-[38px] px-3 sm:px-4 rounded-md border border-line bg-card text-muted font-semibold text-[13px] opacity-50 cursor-not-allowed"
+                >
+                  Inscribirse
+                </button>
               ) : (
-                <button className="shrink-0 h-[38px] px-3 sm:px-4 rounded-md border border-line bg-card text-ink font-semibold text-[13px] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                <button
+                  onClick={() => setSelectedEvent({ id: e.id, title: e.title })}
+                  className="shrink-0 h-[38px] px-3 sm:px-4 rounded-md border border-line bg-card text-ink font-semibold text-[13px] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                >
                   Inscribirse
                 </button>
               )}
@@ -115,6 +130,7 @@ export default function Eventos() {
           ))}
         </div>
       )}
+      <EventRegistrationModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
     </div>
   )
 }
