@@ -13,7 +13,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { cors: false });
   const config = app.get(ConfigService<AppConfig, true>);
 
-  // El stack siempre corre detrás del reverse proxy Nginx (ver nginx/nginx.conf):
+  // El stack siempre corre detrás del reverse proxy Nginx (ver nginx/nginx.conf.template):
   // sin esto, el rate limiting y los logs de auditoría registrarían la IP del
   // proxy para todos los usuarios en vez de la IP real del cliente.
   app.set('trust proxy', 1);

@@ -208,7 +208,52 @@ Ver el detalle funcional completo en la sección 8 (checklist de validación) y 
 ### Seguridad (ver `docs/SEGURIDAD.md` y `docs/CHECKLIST_PRODUCCION.md`)
 
 - [ ] HTTPS — si el ambiente preproductivo es accesible fuera de la red interna confiable, esto es
-      bloqueante (las cookies de sesión usan `secure: true` en producción y no se envían sin TLS)
+      bloqueante (las cookies de sesión usan `secure: true` en producción y no se envían sin TLS).
+      Ver sección 9 para activarlo (requiere que Infraestructura provea dominio + DNS + puertos
+      80/443 abiertos; el resto ya está resuelto en el repo)
 - [ ] `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` no son los valores de ejemplo
 - [ ] `ADMIN_PASSWORD`/`SUPER_ADMIN_PASSWORD` no son los valores de ejemplo
 - [ ] `CORS_ORIGINS` apunta solo al dominio/IP real del ambiente, no a `*`
+
+## 9. Habilitar HTTPS (Let's Encrypt)
+
+Por defecto el stack sirve todo por HTTP (puerto 80). Habilitar HTTPS es **opcional y
+explícito** — no se activa solo, para no romper un ambiente que hoy funciona por HTTP
+mientras no estén listos sus requisitos.
+
+**Responsabilidad de Infraestructura, antes de activarlo:**
+
+- Dominio público (`DOMAIN_NAME`) con DNS apuntando a la IP de este servidor.
+- Puertos **80 y 443** abiertos al exterior en el firewall (80 es obligatorio también en
+  HTTPS: Let's Encrypt valida el dominio y emite/renueva el certificado por ahí).
+- Una casilla de correo (`CERTBOT_EMAIL`) para los avisos de expiración de Let's Encrypt.
+
+**Pasos:**
+
+1. Completar en `.env`:
+   ```
+   DOMAIN_NAME=innova.ejemplo.cl
+   CERTBOT_EMAIL=infraestructura@ejemplo.cl
+   ```
+2. Con el stack de preproducción ya levantado al menos una vez (sección 5), correr:
+   ```bash
+   ./scripts/preprod-init-https.sh
+   # Windows: .\scripts\preprod-init-https.ps1
+   ```
+   El script crea un certificado temporal para que Nginx pueda arrancar, levanta el
+   stack con `docker-compose.https.yml` agregado, solicita el certificado real a Let's
+   Encrypt vía el challenge HTTP-01, y recarga Nginx con el certificado definitivo.
+3. Verificar: `curl -I https://<DOMAIN_NAME>/api/health` debe responder `200`.
+
+**De ahí en adelante**, todo `up`/reinicio del stack debe incluir el tercer archivo:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.https.yml up -d --build
+```
+
+La renovación del certificado es automática (contenedor `certbot`, revisa cada 12h y
+renueva cuando falta poco para expirar; Nginx recarga su configuración cada 12h para
+tomar el certificado renovado sin intervención manual).
+
+**Nota para el flujo de actualización (sección 6):** si HTTPS ya está activo, agregar
+`-f docker-compose.https.yml` al comando de `up -d --build` de esa sección.

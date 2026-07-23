@@ -1,0 +1,80 @@
+# InnovaHUAP 360 — Reverse proxy con HTTPS (Let's Encrypt).
+# Se activa solo cuando el stack se levanta con docker-compose.https.yml
+# además de docker-compose.yml + docker-compose.prod.yml (ver
+# scripts/preprod-init-https.sh y README_PREPROD.md sección 9).
+#
+# ${DOMAIN_NAME} lo sustituye Nginx al arrancar (envsubst sobre este
+# .template, ver NGINX_ENVSUBST_FILTER en docker-compose.https.yml).
+
+server {
+    listen 80;
+    server_name ${DOMAIN_NAME};
+    server_tokens off;
+
+    # Requerido por certbot para validar el dominio (challenge HTTP-01).
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMAIN_NAME};
+    server_tokens off;
+
+    client_max_body_size 12m;
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # add_header no se hereda una vez que un location define el suyo propio,
+    # así que estas directivas se repiten en cada location (gotcha de Nginx).
+    # X-XSS-Protection queda fuera de /api/: el backend (helmet) ya envía
+    # deliberadamente "X-XSS-Protection: 0".
+
+    location /api/ {
+        proxy_pass http://backend:3001/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cookie_path / /;
+
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "no-referrer" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()" always;
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Embedder-Policy-Report-Only "require-corp" always;
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    }
+
+    location / {
+        proxy_pass http://frontend:80/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "no-referrer" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()" always;
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Embedder-Policy-Report-Only "require-corp" always;
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    }
+}

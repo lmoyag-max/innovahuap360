@@ -80,8 +80,13 @@ services:
     depends_on:
       - backend
       - frontend
+    environment:
+      # Restringe qué variables sustituye Nginx en el .template al arrancar
+      # (ver docker-compose.https.yml) — evita que envsubst toque por error
+      # variables propias de Nginx como $host o $remote_addr.
+      NGINX_ENVSUBST_FILTER: '^DOMAIN_NAME$'
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
     ports:
       - '80:80'
 

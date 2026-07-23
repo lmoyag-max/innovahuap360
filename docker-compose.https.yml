@@ -1,0 +1,41 @@
+# Override OPCIONAL para habilitar HTTPS con Let's Encrypt.
+# No se usa por defecto: el stack sigue funcionando por HTTP hasta que
+# Infraestructura decida activarlo explícitamente.
+#
+# Requisitos previos (responsabilidad de Infraestructura, no de este repo):
+# - DOMAIN_NAME apuntando por DNS público a este servidor.
+# - Puertos 80 y 443 abiertos al exterior en el firewall.
+#
+# Uso (ver README_PREPROD.md sección 9 y scripts/preprod-init-https.sh):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#     -f docker-compose.https.yml up -d --build
+
+services:
+  nginx:
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME:?Falta DOMAIN_NAME en .env — dominio público real, ej. innova.huap.cl}
+      NGINX_ENVSUBST_FILTER: '^DOMAIN_NAME$'
+    volumes:
+      - ./nginx/nginx.conf.https.template:/etc/nginx/templates/default.conf.template:ro
+      - certbot_conf:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    ports:
+      - '443:443'
+    # Nginx no detecta por sí solo cuando certbot renueva el certificado en
+    # el volumen compartido, así que se recarga cada 12h (operación inofensiva
+    # si el certificado no cambió) para tomar certificados renovados.
+    command: >
+      /bin/sh -c "while :; do sleep 12h & wait $${!}; nginx -s reload; done & exec nginx -g 'daemon off;'"
+
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: >
+      /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+
+volumes:
+  certbot_conf:
+  certbot_www:
