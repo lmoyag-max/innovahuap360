@@ -1,0 +1,22 @@
+# Override para desplegar SOLO backend + frontend + nginx, sin levantar
+# Postgres en Docker: la base de datos vive en un servidor externo ya
+# existente. No modifica docker-compose.yml (que sigue siendo válido para
+# desarrollo local con Postgres en Docker vía docker-compose.dev.yml).
+#
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#     -f docker-compose.externaldb.yml up -d --build backend frontend nginx
+#
+# Requiere DATABASE_URL en .env apuntando a la base de datos externa, p. ej.:
+#   DATABASE_URL=postgresql://usuario:clave@host-externo:5432/innovahuap360
+#
+# Importante: se listan explícitamente los servicios a levantar
+# (backend frontend nginx) para que Compose nunca cree el contenedor
+# "postgres" — sigue definido en docker-compose.yml para no romper el
+# flujo de desarrollo local, pero no se instancia en este comando.
+
+services:
+  backend:
+    depends_on: !reset []
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Debes definir DATABASE_URL en .env apuntando a la base de datos externa}

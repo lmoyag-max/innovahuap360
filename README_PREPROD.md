@@ -79,6 +79,29 @@ No se requiere ninguna acción manual sobre la base de datos para el primer desp
 levantar el stack (sección 5). Para desplegar una migración nueva en un ambiente ya existente,
 ver la sección 7 (flujo de actualización).
 
+### Alternativa: base de datos externa (fuera de Docker)
+
+Por defecto el stack levanta su propio contenedor `postgres`. Si Infraestructura provee una base
+de datos PostgreSQL externa ya existente (separada de los contenedores de la aplicación, según el
+modelo de arquitectura estándar), usar el override `docker-compose.externaldb.yml` en vez de
+levantar Postgres en Docker:
+
+1. En `.env` del servidor, definir `DATABASE_URL` apuntando a esa base externa (ver comentario en
+   `.env.example`), por ejemplo:
+   ```
+   DATABASE_URL=postgresql://usuario:clave@host-externo:5432/innovahuap360
+   ```
+2. Agregar `-f docker-compose.externaldb.yml` a los comandos de la sección 5, y **listar
+   explícitamente** los servicios a levantar para que Compose nunca cree el contenedor `postgres`:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+     -f docker-compose.externaldb.yml up -d --build backend frontend nginx
+   ```
+
+El resto del flujo (migraciones, seed) no cambia: `backend/docker-entrypoint.sh` sigue ejecutando
+`prisma migrate deploy` contra el `DATABASE_URL` que corresponda, sea el Postgres en Docker o el
+externo.
+
 ## 5. Comandos de operación
 
 Todos los comandos usan el override de producción (`docker-compose.prod.yml`), que asegura
